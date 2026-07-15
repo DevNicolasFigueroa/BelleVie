@@ -1,40 +1,30 @@
 // Tipos compartidos entre frontend y respuestas de Xano.
 // Se irán completando a medida que definamos cada tabla en Xano.
 
-export interface Tratamiento {
+export interface Treatment {
     id: number;
-    nombre: string;
-    descripcion: string;
-    precio_base: number;
-    duracion_min: number;
+    created_at: number;
+    name: string;
+    description: string;
+    base_price: number;
+    duration_min: number;
 }
 
-export interface TratamientoOpcion {
+export interface TreatmentOption {
     id: number;
-    tratamiento_id: number;
-    nombre_zona: string;
-    precio: number;
-    duracion_min: number;
+    created_at: number;
+    treatment_id: number;
+    zone_name: string;
+    price: number;
+    duration_min: number;
 }
 
-export interface Producto {
+export interface Product {
     id: number;
-    nombre: string;
-    descripcion: string;
-    precio: number;
+    created_at: number;
+    name: string;
+    description: string;
+    price: number;
     stock: number;
-    imagen_url: string;
-}
-
-export interface Cita {
-    id: number;
-    cliente_id: number;
-    tratamiento_id: number;
-    opcion_id: number | null;
-    fecha: string;
-    hora: string;
-    estado: "pendiente" | "confirmada" | "cancelada" | "completada";
-    precio_total: number;
-    monto_abono: number;
-    estado_abono: "pendiente" | "pagado";
+    image_url: string;
 }
