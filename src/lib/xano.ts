@@ -22,6 +22,7 @@ export async function xanoFetch<T>(
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: body ? JSON.stringify(body) : undefined,
+        cache: "no-store", // evita que Next.js sirva datos viejos de precios/stock
     });
 
     if (!res.ok) {
