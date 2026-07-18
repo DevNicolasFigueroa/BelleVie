@@ -28,3 +28,17 @@ export interface Product {
     stock: number;
     image_url: string;
 }
+
+export interface Appointment {
+    id: number;
+    created_at: number;
+    client_id: number;
+    treatment_id: number;
+    option_id?: number | null;
+    date: string; // YYYY-MM-DD
+    time: string; // enum 9-17, e.g. "09:00"
+    status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+    total_price: number;
+    deposit_amount: number;
+    deposit_status: 'pending' | 'paid';
+}

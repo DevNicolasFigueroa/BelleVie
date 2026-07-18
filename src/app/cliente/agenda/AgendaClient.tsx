@@ -1,0 +1,256 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { Treatment, TreatmentOption } from "@/types";
+
+interface AgendaClientProps {
+  treatments: Treatment[];
+  initialOptions: TreatmentOption[];
+}
+
+export default function AgendaClient({ treatments, initialOptions }: AgendaClientProps) {
+  const [selectedTreatmentId, setSelectedTreatmentId] = useState<number | null>(treatments.length > 0 ? treatments[0].id : null);
+  const [selectedOptionId, setSelectedOptionId] = useState<number | null>(null);
+  
+  const selectedTreatment = treatments.find(t => t.id === selectedTreatmentId);
+  
+  // Opciones aplicables al tratamiento seleccionado
+  const availableOptions = selectedTreatment 
+    ? initialOptions.filter(o => o.treatment_id === selectedTreatment.id)
+    : [];
+
+  // Cuando cambie el tratamiento, si tiene opciones, seleccionamos la primera por defecto.
+  // Si no tiene opciones, limpiamos el selectedOptionId
+  useEffect(() => {
+    if (availableOptions.length > 0) {
+      if (!selectedOptionId || !availableOptions.find(o => o.id === selectedOptionId)) {
+        setSelectedOptionId(availableOptions[0].id);
+      }
+    } else {
+      setSelectedOptionId(null);
+    }
+  }, [selectedTreatmentId, availableOptions, selectedOptionId]);
+
+  const selectedOption = availableOptions.find(o => o.id === selectedOptionId);
+
+  // El precio final y la duración final dependen de si hay una opción seleccionada
+  const finalPrice = selectedOption ? selectedOption.price : (selectedTreatment?.base_price || 0);
+  const finalDuration = selectedOption ? selectedOption.duration_min : (selectedTreatment?.duration_min || 60);
+  const deposit = finalPrice / 2;
+  
+  const [selectedDate, setSelectedDate] = useState<number | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+
+  const colors = {
+    primary: "#775a19",
+    primaryContainer: "#c5a059",
+    surface: "#fcf9f8",
+    surfaceLowest: "#ffffff",
+    secondary: "#5f5e5b",
+    secondaryContainer: "#e5e2dd",
+    outlineVariant: "#d1c5b4",
+    onPrimary: "#ffffff"
+  };
+
+  const timeSlots = [
+    "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30",
+    "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00"
+  ];
+
+  const getIconForTreatment = (name: string) => {
+    const n = name.toLowerCase();
+    if (n.includes("limpieza")) return "spa";
+    if (n.includes("peeling")) return "face_retouching_natural";
+    if (n.includes("radio")) return "bolt";
+    if (n.includes("láser") || n.includes("laser")) return "flash_on";
+    return "spa";
+  };
+
+  return (
+    <div style={{ backgroundColor: colors.surface, minHeight: "100vh", paddingBottom: "120px" }} className="text-gray-900 selection:bg-amber-100">
+
+
+      {/* Header */}
+      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md flex items-center justify-between px-6 py-4 border-b border-[#d1c5b4]/30">
+        <div className="flex items-center gap-4">
+          <Link href="/">
+            <button className="hover:bg-[#e5e2dd]/50 transition-colors p-2 rounded-full active:scale-95 duration-200">
+              <span className="material-symbols-outlined" style={{ color: colors.primary }}>arrow_back</span>
+            </button>
+          </Link>
+          <h1 className="text-2xl font-serif" style={{ color: colors.primary }}>BelleVie</h1>
+        </div>
+      </header>
+
+      <main className="max-w-5xl mx-auto px-6 py-8">
+        
+        {/* Treatment Selection */}
+        <section className="mb-12">
+          <h2 className="text-2xl font-serif mb-6" style={{ color: colors.primary }}>Selecciona tu tratamiento</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            {treatments.map((treatment) => (
+              <label key={treatment.id} className="group relative cursor-pointer block h-full">
+                <input 
+                  checked={selectedTreatmentId === treatment.id} 
+                  onChange={() => setSelectedTreatmentId(treatment.id)}
+                  className="peer hidden" 
+                  name="treatment" 
+                  type="radio" 
+                  value={treatment.id}
+                />
+                <div className={`shadow-[0_10px_30px_-10px_rgba(197,160,89,0.12)] p-6 rounded-xl border transition-all duration-300 h-full flex flex-col group-hover:-translate-y-1 ${selectedTreatmentId === treatment.id ? 'border-[#775a19] bg-[#c5a059]/10' : 'border-transparent bg-white'}`}>
+                  <div className="flex justify-between items-start mb-4">
+                    <span className="material-symbols-outlined" style={{ color: colors.primary }}>{getIconForTreatment(treatment.name)}</span>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedTreatmentId === treatment.id ? 'border-[#775a19] bg-[#775a19]' : 'border-[#d1c5b4]'}`}>
+                      {selectedTreatmentId === treatment.id && <div className="w-2 h-2 rounded-full bg-white"></div>}
+                    </div>
+                  </div>
+                  <h3 className="text-[20px] font-serif mb-2 text-gray-800">{treatment.name}</h3>
+                  <p className="text-sm mb-4 leading-relaxed flex-grow" style={{ color: colors.secondary }}>{treatment.description}</p>
+                  
+                  {/* Mostrar "Desde $X" si el tratamiento tiene opciones, si no, el precio normal */}
+                  <span className="font-bold text-lg" style={{ color: colors.primary }}>
+                    {initialOptions.some(o => o.treatment_id === treatment.id) ? 'Desde ' : ''}
+                    ${treatment.base_price.toLocaleString()}
+                  </span>
+                </div>
+              </label>
+            ))}
+
+          </div>
+
+          {/* Opciones de tratamiento (Ej: Zonas para depilación) */}
+          {availableOptions.length > 0 && (
+            <div className="mt-8 p-6 bg-white shadow-[0_10px_30px_-10px_rgba(197,160,89,0.12)] rounded-xl border border-[#d1c5b4]/50 animate-fade-in">
+              <h3 className="text-xl font-serif mb-4" style={{ color: colors.primary }}>Selecciona la zona</h3>
+              <div className="flex flex-wrap gap-4">
+                {availableOptions.map((opt) => (
+                  <label key={opt.id} className="cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="treatmentOption" 
+                      className="hidden peer"
+                      value={opt.id}
+                      checked={selectedOptionId === opt.id}
+                      onChange={() => setSelectedOptionId(opt.id)}
+                    />
+                    <div className="px-5 py-3 rounded-full border transition-all text-sm font-medium
+                      peer-checked:bg-[#775a19] peer-checked:text-white peer-checked:border-[#775a19]
+                      border-[#d1c5b4] text-gray-700 hover:border-[#775a19]">
+                      {opt.zone_name} — ${opt.price.toLocaleString()}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Date and Time Section */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start mb-12">
+          
+          {/* Calendar */}
+          <div>
+            <h2 className="text-2xl font-serif mb-6" style={{ color: colors.primary }}>Elige una fecha</h2>
+            <div className="bg-white shadow-[0_10px_30px_-10px_rgba(197,160,89,0.12)] p-8 rounded-xl">
+              <div className="flex justify-between items-center mb-8">
+                <h3 className="text-xl font-serif text-gray-800">Septiembre 2024</h3>
+                <div className="flex gap-4">
+                  <button className="hover:bg-[#e5e2dd]/50 p-2 rounded-full transition-colors"><span className="material-symbols-outlined">chevron_left</span></button>
+                  <button className="hover:bg-[#e5e2dd]/50 p-2 rounded-full transition-colors"><span className="material-symbols-outlined">chevron_right</span></button>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-7 mb-4 text-center text-sm font-medium" style={{ color: colors.secondary }}>
+                <div>Lu</div><div>Ma</div><div>Mi</div><div>Ju</div><div>Vi</div><div>Sa</div><div>Do</div>
+              </div>
+              
+              <div className="grid grid-cols-7 gap-y-2">
+                {/* Empty days for offset */}
+                <div className="h-10"></div><div className="h-10"></div><div className="h-10"></div>
+                
+                {/* Simulated Days */}
+                {Array.from({length: 31}, (_, i) => {
+                  const day = i + 1;
+                  const dayOfWeek = (day + 2) % 7;
+                  const isWeekend = dayOfWeek === 5 || dayOfWeek === 6;
+
+                  if (isWeekend) {
+                    return (
+                      <div key={day} className="flex items-center justify-center h-10 w-10 mx-auto text-gray-300 cursor-not-allowed">
+                        {day}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <button 
+                      key={day}
+                      onClick={() => setSelectedDate(day)}
+                      className={`flex items-center justify-center h-10 w-10 mx-auto rounded-full transition-colors font-medium
+                        ${selectedDate === day ? 'bg-[#c5a059] text-white' : 'hover:bg-[#e5e2dd]/50 text-gray-700'}`}
+                    >
+                      {day}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Time Slots */}
+          <div>
+            <h2 className="text-2xl font-serif mb-6" style={{ color: colors.primary }}>Horarios disponibles</h2>
+            <div className="bg-white shadow-[0_10px_30px_-10px_rgba(197,160,89,0.12)] p-8 rounded-xl">
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                {timeSlots.map(time => (
+                  <button
+                    key={time}
+                    onClick={() => setSelectedTime(time)}
+                    className={`py-3 text-center rounded-lg border transition-all text-sm font-medium
+                      ${selectedTime === time 
+                        ? 'bg-[#775a19] text-white border-[#775a19]' 
+                        : 'border-[#d1c5b4] text-gray-700 hover:border-[#775a19]'}`}
+                  >
+                    {time}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-8 text-sm italic text-center" style={{ color: colors.secondary }}>
+                Duración estimada: {finalDuration} minutos
+              </p>
+            </div>
+          </div>
+
+        </section>
+      </main>
+
+      {/* Bottom Summary Panel */}
+      <div className="fixed bottom-0 left-0 w-full z-50 bg-white shadow-[0_-10px_30px_-10px_rgba(197,160,89,0.12)] border-t border-[#d1c5b4]/30 py-4 px-6 md:px-12">
+        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex flex-col md:flex-row gap-6 md:gap-12 items-center w-full md:w-auto">
+            <div className="text-center md:text-left">
+              <p className="text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: colors.secondary }}>Total tratamiento</p>
+              <p className="text-2xl font-serif" style={{ color: colors.primary }}>${finalPrice.toLocaleString()}</p>
+            </div>
+            <div className="hidden md:block w-px h-10 bg-[#d1c5b4]/50"></div>
+            <div className="text-center md:text-left">
+              <p className="text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: colors.secondary }}>Abono requerido (50%)</p>
+              <p className="text-2xl font-serif" style={{ color: colors.primaryContainer }}>${deposit.toLocaleString()}</p>
+            </div>
+          </div>
+          <button 
+            disabled={!selectedDate || !selectedTime || !selectedTreatmentId || (availableOptions.length > 0 && !selectedOptionId)}
+            className={`w-full md:w-auto text-white font-medium py-3 px-8 rounded-full flex items-center justify-center gap-3 transition-all
+              ${(!selectedDate || !selectedTime || !selectedTreatmentId || (availableOptions.length > 0 && !selectedOptionId)) ? 'bg-gray-300 cursor-not-allowed' : 'bg-[#1a1a1a] hover:opacity-90 active:scale-[0.98] shadow-lg'}`}
+          >
+            Agendar y Pagar Abono
+            <span className="material-symbols-outlined text-[18px]">payments</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
