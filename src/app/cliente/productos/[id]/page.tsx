@@ -1,3 +1,4 @@
+import { AddToCartButton } from "@/components/shared/AddToCartButton";
 import { xanoFetch } from "@/lib/xano";
 import type { Product } from "@/types";
 import Link from "next/link";
@@ -17,7 +18,7 @@ export default async function ProductoDetailPage({
             <p>{product.description}</p>
             <p>${product.price}</p>
             <p>{product.stock > 0 ? `${product.stock} disponibles` : "Sin stock"}</p>
-            {/* Botón "Agregar al carrito" va acá cuando construyamos E4 */}
+            <AddToCartButton productId={product.id} price={product.price} />
         </main>
     );
 }
