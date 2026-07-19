@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Treatment, TreatmentOption } from "@/types";
 
 interface AgendaClientProps {
@@ -10,8 +11,16 @@ interface AgendaClientProps {
 }
 
 export default function AgendaClient({ treatments, initialOptions }: AgendaClientProps) {
-  const [selectedTreatmentId, setSelectedTreatmentId] = useState<number | null>(treatments.length > 0 ? treatments[0].id : null);
-  const [selectedOptionId, setSelectedOptionId] = useState<number | null>(null);
+  const searchParams = useSearchParams();
+  const queryTreatmentId = searchParams.get("treatment_id");
+  const queryOptionId = searchParams.get("option_id");
+
+  const [selectedTreatmentId, setSelectedTreatmentId] = useState<number | null>(
+    queryTreatmentId ? parseInt(queryTreatmentId, 10) : (treatments.length > 0 ? treatments[0].id : null)
+  );
+  const [selectedOptionId, setSelectedOptionId] = useState<number | null>(
+    queryOptionId ? parseInt(queryOptionId, 10) : null
+  );
   
   const selectedTreatment = treatments.find(t => t.id === selectedTreatmentId);
   
