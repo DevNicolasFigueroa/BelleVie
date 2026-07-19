@@ -63,8 +63,7 @@ export default function AgendaClient({ treatments, initialOptions }: AgendaClien
   };
 
   const timeSlots = [
-    "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30",
-    "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00"
+    "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"
   ];
 
   const getIconForTreatment = (name: string) => {
@@ -75,6 +74,20 @@ export default function AgendaClient({ treatments, initialOptions }: AgendaClien
     if (n.includes("láser") || n.includes("laser")) return "flash_on";
     return "spa";
   };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const currentDay = today.getDay();
+  const isWeekendToday = currentDay === 0 || currentDay === 6;
+  
+  const distanceToMonday = currentDay === 0 ? 6 : currentDay - 1;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - distanceToMonday);
+  
+  if (isWeekendToday) {
+    monday.setDate(monday.getDate() + 7);
+  }
 
   return (
     <div style={{ backgroundColor: colors.surface, minHeight: "100vh", paddingBottom: "120px" }} className="text-gray-900 selection:bg-amber-100">
@@ -94,41 +107,42 @@ export default function AgendaClient({ treatments, initialOptions }: AgendaClien
 
       <main className="max-w-5xl mx-auto px-6 py-8">
         
-        {/* Treatment Selection */}
+        {/* Selected Treatment Detail */}
         <section className="mb-12">
-          <h2 className="text-2xl font-serif mb-6" style={{ color: colors.primary }}>Selecciona tu tratamiento</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            {treatments.map((treatment) => (
-              <label key={treatment.id} className="group relative cursor-pointer block h-full">
-                <input 
-                  checked={selectedTreatmentId === treatment.id} 
-                  onChange={() => setSelectedTreatmentId(treatment.id)}
-                  className="peer hidden" 
-                  name="treatment" 
-                  type="radio" 
-                  value={treatment.id}
-                />
-                <div className={`shadow-[0_10px_30px_-10px_rgba(197,160,89,0.12)] p-6 rounded-xl border transition-all duration-300 h-full flex flex-col group-hover:-translate-y-1 ${selectedTreatmentId === treatment.id ? 'border-[#775a19] bg-[#c5a059]/10' : 'border-transparent bg-white'}`}>
-                  <div className="flex justify-between items-start mb-4">
-                    <span className="material-symbols-outlined" style={{ color: colors.primary }}>{getIconForTreatment(treatment.name)}</span>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedTreatmentId === treatment.id ? 'border-[#775a19] bg-[#775a19]' : 'border-[#d1c5b4]'}`}>
-                      {selectedTreatmentId === treatment.id && <div className="w-2 h-2 rounded-full bg-white"></div>}
-                    </div>
-                  </div>
-                  <h3 className="text-[20px] font-serif mb-2 text-gray-800">{treatment.name}</h3>
-                  <p className="text-sm mb-4 leading-relaxed flex-grow" style={{ color: colors.secondary }}>{treatment.description}</p>
-                  
-                  {/* Mostrar "Desde $X" si el tratamiento tiene opciones, si no, el precio normal */}
-                  <span className="font-bold text-lg" style={{ color: colors.primary }}>
-                    {initialOptions.some(o => o.treatment_id === treatment.id) ? 'Desde ' : ''}
-                    ${treatment.base_price.toLocaleString()}
+          {selectedTreatment ? (
+            <div className="bg-white shadow-[0_10px_30px_-10px_rgba(197,160,89,0.12)] p-8 rounded-2xl border border-[#d1c5b4]/30 flex flex-col md:flex-row gap-8 items-start">
+              <div className="w-24 h-24 md:w-32 md:h-32 bg-[#c5a059]/10 rounded-full flex-shrink-0 flex items-center justify-center border border-[#775a19]/20">
+                <span className="material-symbols-outlined text-[48px]" style={{ color: colors.primary }}>
+                  {getIconForTreatment(selectedTreatment.name)}
+                </span>
+              </div>
+              <div className="flex-1">
+                <h2 className="text-3xl font-serif mb-2 text-gray-900">{selectedTreatment.name}</h2>
+                <p className="text-gray-600 mb-6 leading-relaxed text-lg">{selectedTreatment.description}</p>
+                <div className="flex flex-wrap gap-4 items-center">
+                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#fcf9f8] border border-[#d1c5b4]/50 text-sm font-semibold text-gray-700">
+                    <span className="material-symbols-outlined text-[18px]">schedule</span>
+                    {selectedTreatment.duration_min} min
+                  </span>
+                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#fcf9f8] border border-[#d1c5b4]/50 text-sm font-semibold text-[#775a19]">
+                    <span className="material-symbols-outlined text-[18px]">payments</span>
+                    {initialOptions.some(o => o.treatment_id === selectedTreatment.id) ? 'Desde ' : ''}
+                    ${selectedTreatment.base_price.toLocaleString()}
                   </span>
                 </div>
-              </label>
-            ))}
-
-          </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-white rounded-2xl border border-[#d1c5b4]/30 shadow-[0_10px_30px_-10px_rgba(197,160,89,0.12)]">
+              <span className="material-symbols-outlined text-5xl text-gray-300 mb-4">spa</span>
+              <p className="text-gray-500 mb-6 font-serif text-lg">No has seleccionado ningún tratamiento.</p>
+              <Link href="/cliente/tratamientos">
+                <button className="px-8 py-3 rounded-full bg-[#1a1a1a] text-white font-medium hover:opacity-90 transition-opacity shadow-lg">
+                  Explorar Tratamientos
+                </button>
+              </Link>
+            </div>
+          )}
 
           {/* Opciones de tratamiento (Ej: Zonas para depilación) */}
           {availableOptions.length > 0 && (
@@ -165,43 +179,45 @@ export default function AgendaClient({ treatments, initialOptions }: AgendaClien
             <h2 className="text-2xl font-serif mb-6" style={{ color: colors.primary }}>Elige una fecha</h2>
             <div className="bg-white shadow-[0_10px_30px_-10px_rgba(197,160,89,0.12)] p-8 rounded-xl">
               <div className="flex justify-between items-center mb-8">
-                <h3 className="text-xl font-serif text-gray-800">Septiembre 2024</h3>
-                <div className="flex gap-4">
-                  <button className="hover:bg-[#e5e2dd]/50 p-2 rounded-full transition-colors"><span className="material-symbols-outlined">chevron_left</span></button>
-                  <button className="hover:bg-[#e5e2dd]/50 p-2 rounded-full transition-colors"><span className="material-symbols-outlined">chevron_right</span></button>
-                </div>
+                <h3 className="text-xl font-serif text-gray-800 capitalize">
+                  {monday.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })}
+                </h3>
               </div>
               
-              <div className="grid grid-cols-7 mb-4 text-center text-sm font-medium" style={{ color: colors.secondary }}>
-                <div>Lu</div><div>Ma</div><div>Mi</div><div>Ju</div><div>Vi</div><div>Sa</div><div>Do</div>
+              <div className="grid grid-cols-5 mb-4 text-center text-sm font-medium" style={{ color: colors.secondary }}>
+                <div>Lu</div><div>Ma</div><div>Mi</div><div>Ju</div><div>Vi</div>
               </div>
               
-              <div className="grid grid-cols-7 gap-y-2">
-                {/* Empty days for offset */}
-                <div className="h-10"></div><div className="h-10"></div><div className="h-10"></div>
-                
-                {/* Simulated Days */}
-                {Array.from({length: 31}, (_, i) => {
-                  const day = i + 1;
-                  const dayOfWeek = (day + 2) % 7;
-                  const isWeekend = dayOfWeek === 5 || dayOfWeek === 6;
+              <div className="grid grid-cols-5 gap-y-4 text-center">
+                {Array.from({ length: 7 }, (_, i) => {
+                  const d = new Date(monday);
+                  d.setDate(monday.getDate() + i);
+                  
+                  const dayNumber = d.getDate();
+                  const dayOfWeek = d.getDay();
+                  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                  
+                  if (isWeekend) return null; // Hide weekends completely
+                  
+                  const isPast = d.getTime() < today.getTime();
+                  const dateValue = d.getTime();
 
-                  if (isWeekend) {
+                  if (isPast) {
                     return (
-                      <div key={day} className="flex items-center justify-center h-10 w-10 mx-auto text-gray-300 cursor-not-allowed">
-                        {day}
+                      <div key={i} className="flex items-center justify-center h-10 w-10 mx-auto text-gray-300 cursor-not-allowed">
+                        {dayNumber}
                       </div>
                     );
                   }
 
                   return (
                     <button 
-                      key={day}
-                      onClick={() => setSelectedDate(day)}
+                      key={i}
+                      onClick={() => setSelectedDate(dateValue)}
                       className={`flex items-center justify-center h-10 w-10 mx-auto rounded-full transition-colors font-medium
-                        ${selectedDate === day ? 'bg-[#c5a059] text-white' : 'hover:bg-[#e5e2dd]/50 text-gray-700'}`}
+                        ${selectedDate === dateValue ? 'bg-[#c5a059] text-white shadow-md' : 'hover:bg-[#e5e2dd]/50 text-gray-700'}`}
                     >
-                      {day}
+                      {dayNumber}
                     </button>
                   );
                 })}
