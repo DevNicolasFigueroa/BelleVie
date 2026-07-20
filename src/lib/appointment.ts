@@ -25,7 +25,13 @@ export async function createAppointment(
         time: string; // e.g., "09:00"
     }
 ): Promise<Appointment> {
-    const user = await getMe(token);
+    const XANO_AUTH_URL = process.env.NEXT_PUBLIC_XANO_AUTH_URL as string;
+    const meRes = await fetch(`${XANO_AUTH_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+    });
+    if (!meRes.ok) throw new Error("Token inválido");
+    const user = await meRes.json();
     
     // Por seguridad, pasamos el client_id extraido desde el token
     return xanoFetch<Appointment>("/appointment", {

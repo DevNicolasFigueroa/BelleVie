@@ -30,18 +30,25 @@ export default async function ProductoDetailPage({
                 <div className="bg-white rounded-3xl overflow-hidden shadow-[0_20px_40px_-15px_rgba(197,160,89,0.1)] border border-[#d1c5b4]/20 flex flex-col md:flex-row">
                     
                     {/* Sección de Imagen */}
-                    <div className="md:w-1/2 bg-[#f6f3f2] relative p-12 flex items-center justify-center min-h-[400px]">
-                        <div className="absolute inset-0 bg-gradient-to-tr from-[#e5e2dd]/30 to-transparent z-0"></div>
-                        <span className="material-symbols-outlined text-[160px] text-[#d1c5b4] z-10 font-light drop-shadow-md">
-                            lotion
-                        </span>
-                        <div className="absolute top-6 left-6">
+                    <div className="md:w-1/2 bg-[#f6f3f2] relative overflow-hidden min-h-[400px]">
+                        <img 
+                            src={(() => {
+                                const n = product.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                                if (n.includes("crema") || n.includes("noche") || n.includes("antiage")) return "/productos/crema.png";
+                                if (n.includes("serum") || n.includes("acido") || n.includes("hialuronico")) return "/productos/serum.png";
+                                if (n.includes("protector") || n.includes("solar") || n.includes("spf")) return "/productos/protector.png";
+                                return "/productos/serum.png";
+                            })()}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                        />
+                        <div className="absolute top-6 left-6 z-10">
                             {product.stock > 0 ? (
-                                <span className="text-xs font-semibold tracking-widest uppercase text-[#775a19] bg-[#c5a059]/10 px-3 py-1.5 rounded-full border border-[#c5a059]/20">
+                                <span className="text-xs font-semibold tracking-widest uppercase text-[#775a19] bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-[#c5a059]/20 shadow-sm">
                                     En Stock ({product.stock})
                                 </span>
                             ) : (
-                                <span className="text-xs font-semibold tracking-widest uppercase text-red-600 bg-red-50 px-3 py-1.5 rounded-full border border-red-100">
+                                <span className="text-xs font-semibold tracking-widest uppercase text-red-600 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-red-100 shadow-sm">
                                     Agotado
                                 </span>
                             )}

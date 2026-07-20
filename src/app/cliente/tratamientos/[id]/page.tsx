@@ -34,17 +34,27 @@ export default async function TratamientoDetailPage({
                 <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-[0_20px_40px_-15px_rgba(197,160,89,0.1)] border border-[#d1c5b4]/20">
                     
                     {/* Header del Tratamiento */}
-                    <div className="bg-gradient-to-br from-[#fcf9f8] to-[#e5e2dd] p-10 md:p-14 text-center relative overflow-hidden border-b border-[#d1c5b4]/20">
-                        <div className="absolute inset-0 bg-[#c5a059]/5 blur-[80px] rounded-full"></div>
-                        <span className="material-symbols-outlined text-[80px] text-[#775a19]/10 absolute top-10 left-10 rotate-12">spa</span>
-                        <span className="material-symbols-outlined text-[100px] text-[#775a19]/10 absolute -bottom-10 -right-10 -rotate-12">self_improvement</span>
+                    <div className="relative h-72 md:h-96 w-full overflow-hidden bg-gray-950 flex items-end">
+                        <img 
+                            src={(() => {
+                                const n = treatment.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                                if (n.includes("cavitacion")) return "/tratamientos/cavitacion.jpg";
+                                if (n.includes("laserlipolisis") || n.includes("lipolisis")) return "/tratamientos/laserlipolisis.jpg";
+                                if (n.includes("facial") || n.includes("radiofrecuencia")) return "/tratamientos/facialconradiofrecuencia.jpg";
+                                if (n.includes("laser") || n.includes("depilacion")) return "/tratamientos/depilacionlaser.jpg";
+                                return "/tratamientos/cavitacion.jpg";
+                            })()} 
+                            alt={treatment.name}
+                            className="absolute inset-0 w-full h-full object-cover opacity-50"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/40 to-transparent"></div>
                         
-                        <div className="relative z-10">
-                            <span className="px-4 py-1.5 rounded-full text-xs font-semibold tracking-widest uppercase bg-white/80 text-[#775a19] border border-[#d1c5b4]/40 inline-block mb-4">
+                        <div className="relative z-10 p-8 md:p-12 text-white w-full">
+                            <span className="px-4 py-1.5 rounded-full text-xs font-semibold tracking-widest uppercase bg-white/20 text-white backdrop-blur-md border border-white/20 inline-block mb-3">
                                 Tratamiento Especializado
                             </span>
-                            <h1 className="text-4xl md:text-5xl font-serif text-gray-900 leading-tight mb-4">{treatment.name}</h1>
-                            <p className="text-base md:text-lg text-gray-600 font-light leading-relaxed max-w-2xl mx-auto">
+                            <h1 className="text-4xl md:text-5xl font-serif leading-tight mb-3 text-white">{treatment.name}</h1>
+                            <p className="text-sm md:text-base text-gray-200 font-light leading-relaxed max-w-2xl">
                                 {treatment.description}
                             </p>
                         </div>

@@ -35,12 +35,21 @@ export default async function TratamientosPage() {
                         {treatments.map((t) => (
                             <Link href={`/cliente/tratamientos/${t.id}`} key={t.id} className="group flex flex-col bg-white rounded-3xl overflow-hidden border border-[#d1c5b4]/30 shadow-[0_10px_30px_-15px_rgba(197,160,89,0.1)] hover:shadow-[0_20px_40px_-15px_rgba(197,160,89,0.2)] transition-all duration-500 hover:-translate-y-1">
                                 
-                                {/* Placeholder de imagen del tratamiento */}
-                                <div className="h-56 bg-[#f6f3f2] relative overflow-hidden flex items-center justify-center">
-                                    <div className="absolute inset-0 bg-gradient-to-br from-[#e5e2dd]/60 to-[#f6f3f2] z-0 group-hover:scale-105 transition-transform duration-700"></div>
-                                    <span className="material-symbols-outlined text-[70px] text-[#d1c5b4] z-10 group-hover:text-[#c5a059] transition-colors duration-500 font-light drop-shadow-sm">
-                                        self_improvement
-                                    </span>
+                                {/* Imagen del tratamiento */}
+                                <div className="h-56 relative overflow-hidden bg-[#f6f3f2]">
+                                    <img 
+                                        src={(() => {
+                                            const n = t.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                                            if (n.includes("cavitacion")) return "/tratamientos/cavitacion.jpg";
+                                            if (n.includes("laserlipolisis") || n.includes("lipolisis")) return "/tratamientos/laserlipolisis.jpg";
+                                            if (n.includes("facial") || n.includes("radiofrecuencia")) return "/tratamientos/facialconradiofrecuencia.jpg";
+                                            if (n.includes("laser") || n.includes("depilacion")) return "/tratamientos/depilacionlaser.jpg";
+                                            return "/tratamientos/cavitacion.jpg";
+                                        })()} 
+                                        alt={t.name}
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60"></div>
                                 </div>
                                 
                                 {/* Información del tratamiento */}

@@ -35,12 +35,19 @@ export default async function ProductosPage() {
                         {products.map((p) => (
                             <Link href={`/cliente/productos/${p.id}`} key={p.id} className="group flex flex-col bg-white rounded-2xl overflow-hidden border border-[#d1c5b4]/30 shadow-[0_10px_30px_-15px_rgba(197,160,89,0.1)] hover:shadow-[0_20px_40px_-15px_rgba(197,160,89,0.2)] transition-all duration-500 hover:-translate-y-1">
                                 
-                                {/* Placeholder de imagen del producto */}
-                                <div className="aspect-square bg-[#f6f3f2] relative overflow-hidden flex items-center justify-center">
-                                    <div className="absolute inset-0 bg-gradient-to-tr from-[#e5e2dd]/50 to-transparent z-0 group-hover:scale-105 transition-transform duration-700"></div>
-                                    <span className="material-symbols-outlined text-[80px] text-[#d1c5b4] z-10 group-hover:text-[#c5a059] transition-colors duration-500 font-light drop-shadow-sm">
-                                        lotion
-                                    </span>
+                                {/* Imagen del producto */}
+                                <div className="aspect-square bg-[#f6f3f2] relative overflow-hidden">
+                                    <img 
+                                        src={(() => {
+                                            const n = p.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                                            if (n.includes("crema") || n.includes("noche") || n.includes("antiage")) return "/productos/crema.png";
+                                            if (n.includes("serum") || n.includes("acido") || n.includes("hialuronico")) return "/productos/serum.png";
+                                            if (n.includes("protector") || n.includes("solar") || n.includes("spf")) return "/productos/protector.png";
+                                            return "/productos/serum.png";
+                                        })()}
+                                        alt={p.name}
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                                    />
                                 </div>
                                 
                                 {/* Información del producto */}

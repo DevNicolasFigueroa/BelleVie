@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Treatment, TreatmentOption } from "@/types";
+import { getToken, getMe } from "@/lib/auth";
 
 interface AgendaClientProps {
   treatments: Treatment[];
@@ -50,6 +51,80 @@ export default function AgendaClient({ treatments, initialOptions }: AgendaClien
   
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  async function handleBookAndPay() {
+    if (!selectedDate || !selectedTime || !selectedTreatmentId || (availableOptions.length > 0 && !selectedOptionId) || isProcessing) return;
+    setIsProcessing(true);
+    try {
+      const token = getToken();
+      if (!token) {
+        alert("Debes iniciar sesión para agendar.");
+        setIsProcessing(false);
+        return;
+      }
+
+      const user = await getMe();
+      const formattedDate = new Date(selectedDate).toISOString().split("T")[0];
+
+      // 1. Crear cita en estado pendiente en Xano
+      let apptId = Date.now();
+      try {
+        const apptRes = await fetch(`${process.env.NEXT_PUBLIC_XANO_BASE_URL}/appointment`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            client_id: user.id,
+            treatment_id: selectedTreatmentId,
+            option_id: selectedOptionId,
+            date: formattedDate,
+            time: selectedTime,
+            status: "pending",
+            total_price: finalPrice,
+            deposit_amount: deposit,
+            deposit_status: "pending"
+          })
+        });
+
+        if (apptRes.ok) {
+          const apptData = await apptRes.json();
+          if (apptData?.id) apptId = apptData.id;
+        }
+      } catch (e) {
+        console.warn("Advertencia: No se pudo registrar borrador en Xano pre-pago, se usará ID local", e);
+      }
+
+      // 2. Iniciar pasarela de pago con Transbank
+      const buyOrder = `APPT-${apptId}-${Date.now()}`;
+      const res = await fetch("/api/webpay/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: deposit, buyOrder }),
+      });
+      const data = await res.json();
+      if (data.ok && data.url && data.token) {
+        const form = document.createElement("form");
+        form.action = data.url;
+        form.method = "POST";
+        const tokenInput = document.createElement("input");
+        tokenInput.type = "hidden";
+        tokenInput.name = "token_ws";
+        tokenInput.value = data.token;
+        form.appendChild(tokenInput);
+        document.body.appendChild(form);
+        form.submit();
+      } else {
+        alert("Error al iniciar Webpay: " + (data.error || "Intente nuevamente"));
+        setIsProcessing(false);
+      }
+    } catch (err) {
+      alert("Error al conectar con la pasarela de pago.");
+      setIsProcessing(false);
+    }
+  }
 
   const colors = {
     primary: "#775a19",
@@ -267,11 +342,12 @@ export default function AgendaClient({ treatments, initialOptions }: AgendaClien
             </div>
           </div>
           <button 
-            disabled={!selectedDate || !selectedTime || !selectedTreatmentId || (availableOptions.length > 0 && !selectedOptionId)}
+            onClick={handleBookAndPay}
+            disabled={!selectedDate || !selectedTime || !selectedTreatmentId || (availableOptions.length > 0 && !selectedOptionId) || isProcessing}
             className={`w-full md:w-auto text-white font-medium py-3 px-8 rounded-full flex items-center justify-center gap-3 transition-all
-              ${(!selectedDate || !selectedTime || !selectedTreatmentId || (availableOptions.length > 0 && !selectedOptionId)) ? 'bg-gray-300 cursor-not-allowed' : 'bg-[#1a1a1a] hover:opacity-90 active:scale-[0.98] shadow-lg'}`}
+              ${(!selectedDate || !selectedTime || !selectedTreatmentId || (availableOptions.length > 0 && !selectedOptionId) || isProcessing) ? 'bg-gray-300 cursor-not-allowed' : 'bg-[#1a1a1a] hover:opacity-90 active:scale-[0.98] shadow-lg'}`}
           >
-            Agendar y Pagar Abono
+            {isProcessing ? "Conectando..." : "Agendar y Pagar Abono"}
             <span className="material-symbols-outlined text-[18px]">payments</span>
           </button>
         </div>

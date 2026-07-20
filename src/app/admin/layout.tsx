@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import AdminSidebar from "@/components/admin/AdminSidebar";
 
 export default async function AdminLayout({
   children,
@@ -28,11 +29,18 @@ export default async function AdminLayout({
     const user = await res.json();
 
     if (user.role !== "admin") {
-      redirect("/cliente/perfil"); // Redirige a clientes a su propio perfil
+      redirect("/cliente/perfil");
     }
   } catch (error) {
     redirect("/cliente/login");
   }
 
-  return <>{children}</>;
+  return (
+    <div className="flex min-h-screen bg-[#fcf9f8]">
+      <AdminSidebar />
+      <div className="flex-1 overflow-auto">
+        {children}
+      </div>
+    </div>
+  );
 }

@@ -28,8 +28,41 @@ export default function CarritoPage() {
         setItems((prev) => prev.map((i) => (i.id === id ? updated : i)));
     }
 
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    async function handleCheckout() {
+        if (items.length === 0 || isProcessing) return;
+        setIsProcessing(true);
+        try {
+            const res = await fetch("/api/webpay/create", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ amount: total }),
+            });
+            const data = await res.json();
+            if (data.ok && data.url && data.token) {
+                const form = document.createElement("form");
+                form.action = data.url;
+                form.method = "POST";
+                const tokenInput = document.createElement("input");
+                tokenInput.type = "hidden";
+                tokenInput.name = "token_ws";
+                tokenInput.value = data.token;
+                form.appendChild(tokenInput);
+                document.body.appendChild(form);
+                form.submit();
+            } else {
+                alert("Error al iniciar Webpay: " + (data.error || "Intente nuevamente"));
+                setIsProcessing(false);
+            }
+        } catch (err) {
+            alert("Error al conectar con el servidor de pago.");
+            setIsProcessing(false);
+        }
+    }
+
     const subtotal = items.reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
-    const taxes = 0; // Ajustar si es necesario
+    const taxes = 0;
     const total = subtotal + taxes;
 
     const colors = {
@@ -159,8 +192,12 @@ export default function CarritoPage() {
                                     </div>
                                 </div>
                                 
-                                <button className="w-full py-4 rounded-xl text-white font-semibold tracking-wide transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center gap-2 bg-[#1a1a1a]">
-                                    Ir a Pagar
+                                <button 
+                                    onClick={handleCheckout}
+                                    disabled={isProcessing}
+                                    className={`w-full py-4 rounded-xl text-white font-semibold tracking-wide transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 ${isProcessing ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#1a1a1a] hover:-translate-y-0.5'}`}
+                                >
+                                    {isProcessing ? "Conectando con Webpay..." : "Ir a Pagar"}
                                     <span className="material-symbols-outlined text-[18px]">lock</span>
                                 </button>
                                 

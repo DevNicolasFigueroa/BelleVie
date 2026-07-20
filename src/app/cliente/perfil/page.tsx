@@ -37,7 +37,7 @@ export default async function ClientProfilePage() {
         // Obtenemos las citas del cliente. Asumimos que Xano devuelve todo si es admin 
         // o filtra por `client_id` si el token pertenece a un cliente, o lo filtraremos aquí
         const allAppointments = await xanoFetch<Appointment[]>("/appointment", {
-            headers: { Authorization: `Bearer ${token}` }
+            token,
         }).catch(() => []);
 
         // Filtramos para asegurar que solo sean las citas de este usuario
@@ -54,6 +54,8 @@ export default async function ClientProfilePage() {
     } catch (e) {
         console.error("Error cargando perfil del cliente", e);
     }
+
+    if (!user) redirect("/cliente/login");
 
     return <ClientProfile user={user} appointments={appointments} />;
 }
