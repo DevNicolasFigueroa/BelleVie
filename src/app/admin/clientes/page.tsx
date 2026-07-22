@@ -12,7 +12,10 @@ interface ClientRow {
   role: string;
 }
 
+import { useRouter } from "next/navigation";
+
 export default function AdminClientesPage() {
+  const router = useRouter();
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -99,12 +102,13 @@ export default function AdminClientesPage() {
                 <th className="px-6 py-4 font-semibold">Email</th>
                 <th className="px-6 py-4 font-semibold">Teléfono</th>
                 <th className="px-6 py-4 font-semibold">Registro</th>
+                <th className="px-6 py-4 font-semibold text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#d1c5b4]/15">
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center">
+                  <td colSpan={5} className="px-6 py-12 text-center">
                     <span className="material-symbols-outlined text-4xl text-gray-200 block mb-3 animate-pulse">group</span>
                     <p className="text-gray-400 text-sm">Cargando clientes…</p>
                   </td>
@@ -130,12 +134,21 @@ export default function AdminClientesPage() {
                         day: "2-digit", month: "short", year: "numeric",
                       })}
                     </td>
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => router.push(`/admin/clientes/${client.id}`)}
+                        className="px-3 py-1.5 rounded-lg bg-[#c5a059]/10 text-[#775a19] hover:bg-[#c5a059]/20 transition-colors flex items-center gap-1.5 ml-auto text-sm font-semibold"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">visibility</span>
+                        Ver ficha
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-6 py-16 text-center">
+                  <td colSpan={5} className="px-6 py-16 text-center">
                     <span className="material-symbols-outlined text-5xl text-gray-200 block mb-3">person_search</span>
                     <p className="text-gray-400 text-sm">No se encontraron clientes.</p>
                   </td>
