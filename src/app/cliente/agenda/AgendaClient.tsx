@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Treatment, TreatmentOption } from "@/types";
 import { getToken, getMe } from "@/lib/auth";
+import { addAppointmentToCart } from "@/lib/cart";
+import { useRouter } from "next/navigation";
 
 interface AgendaClientProps {
   treatments: Treatment[];
@@ -12,6 +14,7 @@ interface AgendaClientProps {
 }
 
 export default function AgendaClient({ treatments, initialOptions }: AgendaClientProps) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const queryTreatmentId = searchParams.get("treatment_id");
   const queryOptionId = searchParams.get("option_id");
@@ -22,11 +25,11 @@ export default function AgendaClient({ treatments, initialOptions }: AgendaClien
   const [selectedOptionId, setSelectedOptionId] = useState<number | null>(
     queryOptionId ? parseInt(queryOptionId, 10) : null
   );
-  
+
   const selectedTreatment = treatments.find(t => t.id === selectedTreatmentId);
-  
+
   // Opciones aplicables al tratamiento seleccionado
-  const availableOptions = selectedTreatment 
+  const availableOptions = selectedTreatment
     ? initialOptions.filter(o => o.treatment_id === selectedTreatment.id)
     : [];
 
@@ -48,12 +51,53 @@ export default function AgendaClient({ treatments, initialOptions }: AgendaClien
   const finalPrice = selectedOption ? selectedOption.price : (selectedTreatment?.base_price || 0);
   const finalDuration = selectedOption ? selectedOption.duration_min : (selectedTreatment?.duration_min || 60);
   const deposit = finalPrice / 2;
-  
+
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [bookedHours, setBookedHours] = useState<Set<string>>(new Set());
 
-  async function handleBookAndPay() {
+  const getFormattedDate = (timestamp: number): string => {
+    const d = new Date(timestamp);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  useEffect(() => {
+    const fetchBookedHours = async () => {
+      if (!selectedDate) {
+        setBookedHours(new Set());
+        return;
+      }
+      try {
+        const token = getToken();
+        if (!token) return;
+
+        const dateStr = getFormattedDate(selectedDate);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_XANO_BASE_URL}/appointment`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) return;
+
+        const appointments = await res.json();
+        const booked = new Set<string>();
+        appointments.forEach((apt: any) => {
+          if (apt.date === dateStr && apt.status === "confirmed" && apt.deposit_status === "paid") {
+            booked.add(apt.time);
+          }
+        });
+        setBookedHours(booked);
+      } catch (err) {
+        console.error("Error fetching booked hours:", err);
+      }
+    };
+
+    fetchBookedHours();
+  }, [selectedDate]);
+
+  async function handleAddToCart() {
     if (!selectedDate || !selectedTime || !selectedTreatmentId || (availableOptions.length > 0 && !selectedOptionId) || isProcessing) return;
     setIsProcessing(true);
     try {
@@ -65,63 +109,45 @@ export default function AgendaClient({ treatments, initialOptions }: AgendaClien
       }
 
       const user = await getMe();
-      const formattedDate = new Date(selectedDate).toISOString().split("T")[0];
+      const formattedDate = getFormattedDate(selectedDate);
 
-      // 1. Crear cita en estado pendiente en Xano
-      let apptId = Date.now();
-      try {
-        const apptRes = await fetch(`${process.env.NEXT_PUBLIC_XANO_BASE_URL}/appointment`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            client_id: user.id,
-            treatment_id: selectedTreatmentId,
-            option_id: selectedOptionId,
-            date: formattedDate,
-            time: selectedTime,
-            status: "pending",
-            total_price: finalPrice,
-            deposit_amount: deposit,
-            deposit_status: "pending"
-          })
-        });
-
-        if (apptRes.ok) {
-          const apptData = await apptRes.json();
-          if (apptData?.id) apptId = apptData.id;
-        }
-      } catch (e) {
-        console.warn("Advertencia: No se pudo registrar borrador en Xano pre-pago, se usará ID local", e);
-      }
-
-      // 2. Iniciar pasarela de pago con Transbank
-      const buyOrder = `APPT-${apptId}-${Date.now()}`;
-      const res = await fetch("/api/webpay/create", {
+      // 1. Crear la cita en estado pendiente.
+      // total_price y deposit_amount los calcula Xano desde el tratamiento.
+      const apptRes = await fetch(`${process.env.NEXT_PUBLIC_XANO_BASE_URL}/appointment`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: deposit, buyOrder }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          client_id: user.id,
+          treatment_id: selectedTreatmentId,
+          option_id: selectedOptionId,
+          date: formattedDate,
+          time: selectedTime,
+          status: "pending",
+          deposit_status: "pending"
+        })
       });
-      const data = await res.json();
-      if (data.ok && data.url && data.token) {
-        const form = document.createElement("form");
-        form.action = data.url;
-        form.method = "POST";
-        const tokenInput = document.createElement("input");
-        tokenInput.type = "hidden";
-        tokenInput.name = "token_ws";
-        tokenInput.value = data.token;
-        form.appendChild(tokenInput);
-        document.body.appendChild(form);
-        form.submit();
-      } else {
-        alert("Error al iniciar Webpay: " + (data.error || "Intente nuevamente"));
+
+      if (!apptRes.ok) {
+        alert("No se pudo reservar el horario. Puede que ya haya sido tomado — recarga e intenta de nuevo.");
         setIsProcessing(false);
+        return;
       }
-    } catch (err) {
-      alert("Error al conectar con la pasarela de pago.");
+
+      const appointment = await apptRes.json();
+      if (!appointment?.id) {
+        alert("No se pudo reservar el horario. Intenta nuevamente.");
+        setIsProcessing(false);
+        return;
+      }
+
+      // 2. Agregar al carrito con el depósito calculado por Xano.
+      await addAppointmentToCart(appointment.id, appointment.deposit_amount);
+      router.push("/cliente/carrito");
+    } catch (err: any) {
+      alert("Error al agregar al carrito: " + (err.message || String(err)));
       setIsProcessing(false);
     }
   }
@@ -138,8 +164,37 @@ export default function AgendaClient({ treatments, initialOptions }: AgendaClien
   };
 
   const timeSlots = [
-    "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"
+    "9:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"
   ];
+
+  const isTimeAvailable = (time: string): boolean => {
+    // Verificar si la hora ya está tomada
+    if (bookedHours.has(time)) return false;
+
+    if (!selectedDate) return true;
+    const selectedDateObj = new Date(selectedDate);
+    selectedDateObj.setHours(0, 0, 0, 0);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Si no es hoy, el horario está disponible
+    if (selectedDateObj.getTime() !== today.getTime()) return true;
+
+    // Si es hoy, comparar con la hora actual
+    const [hours, minutes] = time.split(":").map(Number);
+    const slotTime = new Date();
+    slotTime.setHours(hours, minutes, 0, 0);
+
+    const now = new Date();
+    // Si la hora del slot ya pasó o es la hora actual, no está disponible
+    return slotTime.getTime() > now.getTime();
+  };
+
+  const getTimeTooltip = (time: string): string => {
+    if (bookedHours.has(time)) return "La hora está tomada";
+    return "";
+  };
 
   const getIconForTreatment = (name: string) => {
     const n = name.toLowerCase();
@@ -305,18 +360,31 @@ export default function AgendaClient({ treatments, initialOptions }: AgendaClien
             <h2 className="text-2xl font-serif mb-6" style={{ color: colors.primary }}>Horarios disponibles</h2>
             <div className="bg-white shadow-[0_10px_30px_-10px_rgba(197,160,89,0.12)] p-8 rounded-xl">
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                {timeSlots.map(time => (
-                  <button
-                    key={time}
-                    onClick={() => setSelectedTime(time)}
-                    className={`py-3 text-center rounded-lg border transition-all text-sm font-medium
-                      ${selectedTime === time 
-                        ? 'bg-[#775a19] text-white border-[#775a19]' 
-                        : 'border-[#d1c5b4] text-gray-700 hover:border-[#775a19]'}`}
-                  >
-                    {time}
-                  </button>
-                ))}
+                {timeSlots.map(time => {
+                  const available = isTimeAvailable(time);
+                  const tooltip = getTimeTooltip(time);
+                  return (
+                    <div key={time} className="relative group">
+                      <button
+                        onClick={() => available && setSelectedTime(time)}
+                        disabled={!available}
+                        className={`w-full py-3 text-center rounded-lg border transition-all text-sm font-medium
+                          ${!available
+                            ? 'border-[#d1c5b4]/30 text-gray-300 cursor-not-allowed bg-gray-50'
+                            : selectedTime === time
+                            ? 'bg-[#775a19] text-white border-[#775a19]'
+                            : 'border-[#d1c5b4] text-gray-700 hover:border-[#775a19]'}`}
+                      >
+                        {time}
+                      </button>
+                      {tooltip && (
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                          {tooltip}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               <p className="mt-8 text-sm italic text-center" style={{ color: colors.secondary }}>
                 Duración estimada: {finalDuration} minutos
@@ -332,23 +400,23 @@ export default function AgendaClient({ treatments, initialOptions }: AgendaClien
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex flex-col md:flex-row gap-6 md:gap-12 items-center w-full md:w-auto">
             <div className="text-center md:text-left">
-              <p className="text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: colors.secondary }}>Total tratamiento</p>
+              <p className="text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: colors.secondary }}>Total del tratamiento</p>
               <p className="text-2xl font-serif" style={{ color: colors.primary }}>${finalPrice.toLocaleString()}</p>
             </div>
             <div className="hidden md:block w-px h-10 bg-[#d1c5b4]/50"></div>
             <div className="text-center md:text-left">
-              <p className="text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: colors.secondary }}>Abono requerido (50%)</p>
+              <p className="text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: colors.secondary }}>Depósito en carrito (50%)</p>
               <p className="text-2xl font-serif" style={{ color: colors.primaryContainer }}>${deposit.toLocaleString()}</p>
             </div>
           </div>
-          <button 
-            onClick={handleBookAndPay}
+          <button
+            onClick={handleAddToCart}
             disabled={!selectedDate || !selectedTime || !selectedTreatmentId || (availableOptions.length > 0 && !selectedOptionId) || isProcessing}
             className={`w-full md:w-auto text-white font-medium py-3 px-8 rounded-full flex items-center justify-center gap-3 transition-all
               ${(!selectedDate || !selectedTime || !selectedTreatmentId || (availableOptions.length > 0 && !selectedOptionId) || isProcessing) ? 'bg-gray-300 cursor-not-allowed' : 'bg-[#1a1a1a] hover:opacity-90 active:scale-[0.98] shadow-lg'}`}
           >
-            {isProcessing ? "Conectando..." : "Agendar y Pagar Abono"}
-            <span className="material-symbols-outlined text-[18px]">payments</span>
+            {isProcessing ? "Agregando..." : "Agregar al Carrito"}
+            <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
           </button>
         </div>
       </div>

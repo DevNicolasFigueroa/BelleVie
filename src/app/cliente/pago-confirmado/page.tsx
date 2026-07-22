@@ -15,6 +15,9 @@ function ReceiptContent() {
 
   const isSuccess = status === "success";
   const isCancelled = status === "cancelled";
+  // El cobro se hizo pero no quedó registrado en nuestro sistema: no podemos
+  // mostrar "confirmado" ni "rechazado", ambos serían falsos.
+  const isSyncFailed = status === "payment_ok_sync_failed";
 
   return (
     <main className="max-w-xl mx-auto px-6 py-16 text-center">
@@ -66,6 +69,42 @@ function ReceiptContent() {
                 Volver al Inicio
               </Link>
             </div>
+          </>
+        ) : isSyncFailed ? (
+          <>
+            <div className="w-20 h-20 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <span className="material-symbols-outlined text-[40px]">contact_support</span>
+            </div>
+            <h1 className="text-3xl font-serif text-gray-900 mb-2">Tu pago fue recibido</h1>
+            <p className="text-gray-500 font-light mb-8">
+              El cobro se realizó correctamente, pero no pudimos registrar tu reserva o pedido de
+              forma automática. <strong className="text-gray-700 font-medium">No vuelvas a pagar.</strong> Contáctanos
+              con los datos de abajo y lo dejamos regularizado.
+            </p>
+
+            <div className="bg-[#fcf9f8] p-6 rounded-2xl border border-[#d1c5b4]/30 text-left space-y-3 mb-8 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Orden de Compra:</span>
+                <span className="font-mono text-gray-800 font-medium">{buyOrder}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Monto Pagado:</span>
+                <span className="font-serif text-[#775a19] text-base font-bold">
+                  ${parseInt(amount || "0", 10).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Código Autorización:</span>
+                <span className="font-mono text-gray-800 font-medium">{authorizationCode}</span>
+              </div>
+            </div>
+
+            <Link
+              href="/"
+              className="w-full block py-4 rounded-xl text-white font-semibold tracking-wide bg-[#1a1a1a] hover:opacity-90 transition-opacity"
+            >
+              Volver al Inicio
+            </Link>
           </>
         ) : isCancelled ? (
           <>

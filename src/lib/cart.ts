@@ -12,7 +12,10 @@ export interface CartItem {
     appointment_id: number | null;
     quantity: number;
     unit_price: number;
-    _product?: Product; // si Xano expande la relación, viene acá
+    _product?: Product;
+    appointment_treatment_name?: string | null;
+    appointment_date?: string | null;
+    appointment_time?: string | null;
 }
 
 async function authFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -57,4 +60,28 @@ export async function updateCartItemQuantity(cartItemId: number, quantity: numbe
 
 export async function removeFromCart(cartItemId: number): Promise<void> {
     await authFetch<void>(`/cart/${cartItemId}`, { method: "DELETE" });
+}
+
+export async function addAppointmentToCart(appointmentId: number, depositAmount: number): Promise<CartItem> {
+    return authFetch<CartItem>("/cart", {
+        method: "POST",
+        body: JSON.stringify({
+            item_type: "appointment_deposit",
+            appointment_id: appointmentId,
+            quantity: 1,
+            unit_price: depositAmount,
+        }),
+    });
+}
+
+export async function createOrder(items: CartItem[], total: number): Promise<any> {
+    return authFetch<any>("/order", {
+        method: "POST",
+        body: JSON.stringify({
+            type: "product",
+            items,
+            total,
+            payment_status: "pending"
+        })
+    });
 }

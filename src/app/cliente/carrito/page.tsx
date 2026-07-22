@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getCart, removeFromCart, updateCartItemQuantity, type CartItem } from "@/lib/cart";
+import { getCart, removeFromCart, updateCartItemQuantity, createOrder, type CartItem } from "@/lib/cart";
+import { startWebpayPayment } from "@/lib/webpay-redirect";
 import Link from "next/link";
 import Navbar from "@/components/shared/Navbar";
 
@@ -11,10 +12,18 @@ export default function CarritoPage() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        getCart()
-            .then(setItems)
-            .catch((err) => setError(err.message))
-            .finally(() => setLoading(false));
+        const loadCart = async () => {
+            try {
+                const cartItems = await getCart();
+                setItems(cartItems);
+            } catch (err: any) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadCart();
     }, []);
 
     async function handleRemove(id: number) {
@@ -34,29 +43,10 @@ export default function CarritoPage() {
         if (items.length === 0 || isProcessing) return;
         setIsProcessing(true);
         try {
-            const res = await fetch("/api/webpay/create", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ amount: total }),
-            });
-            const data = await res.json();
-            if (data.ok && data.url && data.token) {
-                const form = document.createElement("form");
-                form.action = data.url;
-                form.method = "POST";
-                const tokenInput = document.createElement("input");
-                tokenInput.type = "hidden";
-                tokenInput.name = "token_ws";
-                tokenInput.value = data.token;
-                form.appendChild(tokenInput);
-                document.body.appendChild(form);
-                form.submit();
-            } else {
-                alert("Error al iniciar Webpay: " + (data.error || "Intente nuevamente"));
-                setIsProcessing(false);
-            }
-        } catch (err) {
-            alert("Error al conectar con el servidor de pago.");
+            const order = await createOrder(items, total);
+            await startWebpayPayment("order", order.id);
+        } catch (err: any) {
+            alert("Error al procesar el pago: " + (err.message || String(err)));
             setIsProcessing(false);
         }
     }
@@ -120,20 +110,27 @@ export default function CarritoPage() {
                                     {/* Imagen Placeholder */}
                                     <div className="w-24 h-24 sm:w-32 sm:h-32 bg-[#fcf9f8] rounded-2xl flex-shrink-0 flex items-center justify-center">
                                         <span className="material-symbols-outlined text-[40px] text-[#d1c5b4]">
-                                            {item._product?.name?.toLowerCase().includes("láser") ? "spa" : "lotion"}
+                                            {item.item_type === "appointment_deposit" ? "spa" : (item._product?.name?.toLowerCase().includes("láser") ? "spa" : "lotion")}
                                         </span>
                                     </div>
-                                    
-                                    {/* Info del Producto */}
+
+                                    {/* Info del Producto/Tratamiento */}
                                     <div className="flex-1 flex flex-col justify-between self-stretch">
                                         <div className="flex justify-between items-start">
                                             <div>
                                                 <h3 className="text-xl font-serif text-gray-900 mb-1 leading-snug">
-                                                    {item._product?.name ?? `Producto #${item.product_id}`}
+                                                    {item.item_type === "appointment_deposit"
+                                                        ? (item.appointment_treatment_name ?? "Cita pendiente")
+                                                        : (item._product?.name ?? `Producto #${item.product_id}`)}
                                                 </h3>
                                                 <p className="text-sm font-semibold tracking-widest uppercase text-[#c5a059] mb-4">
-                                                    ${item.unit_price.toLocaleString()}
+                                                    {item.item_type === "appointment_deposit" ? "Depósito requerido" : `$${item.unit_price.toLocaleString()}`}
                                                 </p>
+                                                {item.item_type === "appointment_deposit" && (
+                                                    <p className="text-sm font-semibold tracking-widest uppercase text-[#c5a059]">
+                                                        ${item.unit_price.toLocaleString()}
+                                                    </p>
+                                                )}
                                             </div>
                                             <button 
                                                 onClick={() => handleRemove(item.id)}

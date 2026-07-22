@@ -27,7 +27,7 @@ export default function AdminCitasClient({
   initialAppointments: AppointmentRow[];
 }) {
   const [appointments, setAppointments] = useState(initialAppointments);
-  const [filterStatus, setFilterStatus] = useState<string>("pending");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterDate, setFilterDate] = useState<string>("");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState<number | null>(null);
