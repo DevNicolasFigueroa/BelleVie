@@ -19,8 +19,11 @@ interface AuthResponse {
 // que no esté ya en el navegador del propio usuario autenticado.
 const TOKEN_KEY = "bellevie_auth_token";
 
-export function saveToken(token: string) {
+export function saveToken(token: string, role?: string) {
     localStorage.setItem(TOKEN_KEY, token);
+    if (role) {
+        localStorage.setItem("bellevie_user_role", role);
+    }
     document.cookie = `bellevie_auth_token=${token}; path=/; max-age=604800; SameSite=Lax`;
 }
 
@@ -31,6 +34,7 @@ export function getToken(): string | null {
 
 export function clearToken() {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem("bellevie_user_role");
     document.cookie = "bellevie_auth_token=; path=/; max-age=0";
 }
 
@@ -50,7 +54,9 @@ export async function signup(
 
     const data: AuthResponse = await res.json();
     saveToken(data.authToken);
-    return getMe();
+    const user = await getMe();
+    saveToken(data.authToken, user.role);
+    return user;
 }
 
 export async function login(email: string, password: string): Promise<User> {
@@ -64,7 +70,9 @@ export async function login(email: string, password: string): Promise<User> {
 
     const data: AuthResponse = await res.json();
     saveToken(data.authToken);
-    return getMe();
+    const user = await getMe();
+    saveToken(data.authToken, user.role);
+    return user;
 }
 
 export async function getMe(): Promise<User> {
