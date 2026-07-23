@@ -89,18 +89,18 @@ export default function Home() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <Link 
-                href="/cliente/agenda"
+              <Link
+                href="/cliente/tratamientos"
                 className="px-8 py-4 rounded-full text-white font-semibold tracking-wide text-center transition-all duration-300 shadow-[0_8px_20px_-6px_rgba(119,90,25,0.4)] hover:shadow-[0_12px_24px_-6px_rgba(119,90,25,0.5)] hover:-translate-y-0.5"
                 style={{ backgroundColor: colors.primary }}
               >
                 Agendar Cita
               </Link>
-              <Link 
-                href="/cliente/tratamientos"
+              <Link
+                href="/cliente/productos"
                 className="px-8 py-4 rounded-full font-semibold tracking-wide text-center transition-all duration-300 border border-[#d1c5b4] hover:border-[#775a19] text-[#775a19] bg-white/50 hover:bg-white"
               >
-                Ver Catálogo
+                Ver Productos
               </Link>
             </div>
           </div>
