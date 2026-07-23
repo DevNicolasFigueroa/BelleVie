@@ -10,7 +10,7 @@
 
 ### Cliente (paciente)
 - Ver tratamientos y productos
-- Agendar citas — **requiere abono del 50% del valor del tratamiento al momento de reservar** (la reserva también pasa por carrito/checkout, igual que la compra de productos)
+- Agendar citas — **requiere abono del 50% del valor del tratamiento al momento de pagar** (ahora integrado en carrito, no es un flujo separado)
 - Comprar productos (carrito + pago online)
 - Chatear con un bot de atención
 
@@ -18,7 +18,7 @@
 - Gestionar citas (ver, reprogramar, cancelar)
 - Ver pedidos de productos
 - Controlar inventario
-- Buscar clientes y ver sus fichas
+- Buscar clientes y ver sus fichas (clínicas con historial de citas/pedidos)
 - Chatbot que funciona como asistente personal (consultas internas, resúmenes, apoyo en gestión)
 
 ## 3. Catálogo inicial
@@ -40,152 +40,204 @@
 
 | Capa | Tecnología |
 |---|---|
-| Frontend | Next.js + React + TypeScript + TailwindCSS |
-| Backend | Xano (PostgreSQL) — API y lógica de negocio vía Xano Functions/Workflows |
+| Frontend | Next.js 16 (App Router) + React + TypeScript + TailwindCSS |
+| Backend | Xano (PostgreSQL) — API y lógica de negocio vía XanoScript |
 | Base de datos | PostgreSQL (gestionada por Xano) |
 | IA | Claude API — chatbot cliente + chatbot asistente admin |
-| Pagos | Por definir (Webpay Plus/Transbank es lo estándar en Chile — lo evaluamos cuando lleguemos a esa fase) |
+| Pagos | Webpay Plus/Transbank (integración completada en Sprint 3) |
 | Metodología | Scrum, con registro de avance por sprint |
 
-**Nota sobre Xano:** al ser low-code, gran parte del backend (endpoints CRUD, autenticación, lógica de negocio simple) se construye visualmente en Xano en vez de escribir Express/Node. Esto cambia el flujo de trabajo: en vez de "programar rutas", vamos a "diseñar tablas + workflows + endpoints" dentro de Xano, y consumir esa API REST desde Next.js. Cuando lleguemos a la integración con Claude, definiremos si el chatbot llama directo a los endpoints de Xano (tool use) o si necesitamos una capa intermedia liviana.
+**Nota sobre Xano:** al ser low-code, gran parte del backend se construye en XanoScript. Xano CLI (`xano workspace push/pull`) es la forma confiable de sincronizar cambios — los archivos `.xs` bajo `xano-backend/` son el espejo local del estado desplegado, nunca confiar solo en la Meta API.
 
-## 5. Modelo de datos (implementado en Xano — Sprint 0 completo)
+**Nota sobre Next.js 16:** versión con breaking changes (`middleware.ts` → `src/proxy.ts`, export `middleware` → `proxy`). Siempre revisar `node_modules/next/dist/docs/` antes de asumir comportamiento.
+
+## 5. Modelo de datos (implementado en Xano — Sprints 0-3 completados)
 
 **Convención:** tablas y campos en inglés.
 
-- **user** (Auth Table nativa de Xano) (id, created_at, name, email, password, phone, role: admin/client, password_reset)
-- **event_log** (default de Xano) (id, created_at, user_id, action, metadata) — reservada para auditoría, se activa más adelante
-- **treatment** (id, created_at, name, description, base_price, duration_min)
-- **treatment_option** (id, created_at, treatment_id → treatment, zone_name, price, duration_min) — solo usada por Depilación Láser
-- **product** (id, created_at, name, description, price, stock, image_url)
-- **appointment** (id, created_at, client_id → user, treatment_id → treatment, option_id → treatment_option [nullable], date, time [enum: 9-17], status [enum: pending/confirmed/cancelled/completed], total_price, deposit_amount, deposit_status [enum: pending/paid])
-- **cart** (id, created_at, client_id → user, item_type [enum: product/appointment_deposit], product_id → product [nullable], appointment_id → appointment [nullable], quantity, unit_price)
-- **order** (id, created_at, client_id → user, type [enum: product/appointment_deposit], items [json], total, payment_status [enum: pending/paid/failed/refunded])
-- **inventory_movement** (id, created_at, product_id → product, type [enum: in/out], quantity, date, reason)
-- **client_file** (id, created_at, user_id → user, clinical_notes, history, allergies)
-- **conversation** (id, created_at, user_id → user, bot_role [enum: client/admin], messages [json])
+- **user** (Auth Table nativa de Xano) — id, created_at, name, email, password, phone, role: admin/client, password_reset
+- **event_log** (default de Xano) — id, created_at, user_id, action, metadata — reservada para auditoría, se activa más adelante
+- **treatment** — id, created_at, name, description, base_price, duration_min
+- **treatment_option** — id, created_at, treatment_id → treatment, zone_name, price, duration_min — solo usada por Depilación Láser
+- **product** — id, created_at, name, description, price, stock, image_url
+- **appointment** — id, created_at, client_id → user, treatment_id → treatment, option_id → treatment_option [nullable], date (YYYY-MM-DD), time (enum: 9–17), status (enum: pending/confirmed/cancelled/completed), total_price, deposit_amount, deposit_status (enum: pending/paid)
+- **cart** — id, created_at, client_id → user, item_type (enum: product/appointment_deposit), product_id → product [nullable], appointment_id → appointment [nullable], quantity, unit_price
+- **order** — id, created_at, client_id → user, type (enum: product/appointment_deposit), items (json array), total, payment_status (enum: pending/paid/failed/refunded)
+- **inventory_movement** — id, created_at, product_id → product, type (enum: in/out), quantity, date, reason
+- **client_file** — id, created_at, user_id → user, clinical_notes, history, allergies
+- **conversation** — id, created_at, user_id → user, bot_role (enum: client/admin), messages (json)
 
-**Decisión de diseño clave — `appointment.time`:** se definió como `enum` con los 9 bloques horarios fijos (`9` a `17`), no como hora exacta con minutos. Todos los tratamientos ocupan un bloque completo de 60 min aunque su duración real sea 45-60 min (`treatment.duration_min` queda como dato informativo). Esto simplifica la verificación de disponibilidad a una sola consulta (¿existe ya un `appointment` con ese `date` + `time`?) y da colchón natural entre turnos.
+**Decisión de diseño clave — `appointment.time`:** se definió como `enum` con los 9 bloques horarios fijos (`9` a `17`), no como hora exacta con minutos. Todos los tratamientos ocupan un bloque completo de 60 min. Esto simplifica la verificación de disponibilidad a una sola consulta (¿existe ya un `appointment` con ese `date` + `time`?) y da colchón natural entre turnos.
 
 ## 6. Metodología Scrum — organización del trabajo
 
-Trabajaremos con **Product Backlog por épicas**, cada épica se descompone en historias de usuario, y agrupamos historias en **Sprints**. Al cerrar cada sprint dejamos registro de: qué se implementó, qué quedó pendiente, y decisiones técnicas tomadas (esto sirve además como bitácora para tu memoria de proyecto/portfolio).
+Trabajamos con **Product Backlog por épicas**, cada épica se descompone en historias de usuario, agrupadas en **Sprints**. Se mantiene registro de: qué se implementó, qué quedó pendiente, y decisiones técnicas tomadas (para bitácora/portfolio).
 
 ### Épicas del Product Backlog
 
-| Épica | Descripción |
-|---|---|
-| E1 - Autenticación | Registro/login cliente y admin, roles |
-| E2 - Catálogo | CRUD tratamientos, opciones (zonas), productos |
-| E3 - Agendamiento | Disponibilidad, crear/gestionar citas. **Depende de E4**: toda cita creada exige el pago del 50% de abono vía carrito antes de confirmarse |
-| E4 - Carrito y Pago | Carrito (productos y abonos de citas), checkout, pasarela de pago |
-| E5 - Chatbot Cliente | Atención, consultas, agendar vía chat |
-| E6 - Panel Admin | Vista de citas, pedidos, gestión general |
-| E7 - Inventario | Control de stock, movimientos |
-| E8 - Gestión de Clientes | Búsqueda de clientes, fichas clínicas |
-| E9 - Chatbot Admin | Asistente interno para la administradora |
+| Épica | Descripción | Estado |
+|---|---|---|
+| E1 - Autenticación | Registro/login cliente y admin, roles | ✅ Completada |
+| E2 - Catálogo | CRUD tratamientos, opciones (zonas), productos | ✅ Completada |
+| E3 - Agendamiento | Disponibilidad, crear/gestionar citas. Depende de E4 | ✅ Completada |
+| E4 - Carrito y Pago | Carrito (productos y abonos de citas), checkout, pasarela de pago | ✅ Completada (Sprint 3) |
+| E5 - Chatbot Cliente | Atención, consultas, agendar vía chat | ⏳ Pendiente |
+| E6 - Panel Admin | Vista de citas, pedidos, gestión general | ✅ Completada (Sprint 2) |
+| E7 - Inventario | Control de stock, movimientos | ⏳ Pendiente |
+| E8 - Gestión de Clientes | Búsqueda de clientes, fichas clínicas | ✅ Completada (Sprint 2) |
+| E9 - Chatbot Admin | Asistente interno para la administradora | ⏳ Pendiente |
 
-### Propuesta de Sprints (a ajustar juntos)
+## 7. Estado actual — Sprints completados
 
-- **Sprint 0 — Fundacional:** Setup de Xano (tablas, auth), setup Next.js + Tailwind, definición de diseño (UI kit), deploy inicial vacío.
-- **Sprint 1:** E1 (auth) + E2 (catálogo, incluyendo variantes de depilación láser).
-- **Sprint 2:** E4 (carrito + pago online), incluyendo soporte para ítems tipo "abono de reserva", no solo productos.
-- **Sprint 3:** E3 (agendamiento completo, lógica de horario L-V 9-18h, integrado con el checkout del abono del 50% construido en Sprint 2).
-- **Sprint 4:** E5 (chatbot cliente conectado a catálogo + agenda vía tool use).
-- **Sprint 5:** E6 + E7 (panel admin, pedidos, inventario).
-- **Sprint 6:** E8 (fichas de clientes) + E9 (chatbot asistente admin).
-- **Sprint 7:** Integración final, pulido, testing, deploy producción.
-
-Cada sprint incluirá su propio registro de Sprint Backlog y Sprint Review dentro del repositorio (por ejemplo en una carpeta `/docs/sprints/`).
-
-## 7. Estado actual — Resumen de sprints completados
-
-### Sprint 0 — Fundacional: CERRADO ✅
+### Sprint 0 — Fundacional: ✅ CERRADO
 
 **Completado:**
 - ✅ Repo Next.js 16 + TypeScript + Tailwind
 - ✅ Git Flow (`main`/`develop`) + Conventional Commits
-- ✅ Estructura de carpetas sin paréntesis: `/admin`, `/cliente` con sub-rutas (`citas`, `productos`, `agenda`, etc.)
-- ✅ Librerías base: `lib/xano.ts`, `lib/claude.ts`, `types/index.ts`
+- ✅ Estructura de carpetas: `/admin`, `/cliente` con sub-rutas
+- ✅ Librerías base: `lib/xano.ts`, `lib/auth.ts`, `lib/cart.ts`, `lib/appointment.ts`
 - ✅ Variables de entorno (`.env.local`) + `.gitignore`
 - ✅ Modelo de datos: 10 tablas en Xano con relaciones y seguridad básica
-- ✅ Conexión Xano verificada (API Group `content` y `Authentication`)
-- ✅ PR #1 mergeada
+- ✅ Conexión Xano verificada (API Groups `content` y `Authentication`)
 
 ---
 
-### Sprint 1 — Autenticación (E1) + Catálogo (E2): CERRADO ✅
+### Sprint 1 — Autenticación (E1) + Catálogo (E2): ✅ CERRADO
 
 **E1 - Autenticación:**
-- `lib/auth.ts`: signup, login, getMe, logout conectados al API Group `Authentication` de Xano
-- Páginas `/cliente/signup` y `/cliente/login`
-- Token guardado en localStorage + cookie (para que `proxy.ts` pueda validar en servidor)
-- `src/proxy.ts` (Next.js 16): protege `/admin` y rutas privadas (`/cliente/agenda`, `/cliente/carrito`, `/cliente/chat`)
-- Redirección post-login según `role`: admin → `/admin`, cliente → `/`
-- PR #2 mergeada
+- ✅ `lib/auth.ts`: signup, login, getMe, logout conectados al API Group `Authentication` de Xano
+- ✅ Páginas `/cliente/signup`, `/cliente/login`
+- ✅ Token en localStorage + cookie (para `proxy.ts` server-side)
+- ✅ `src/proxy.ts`: protege `/admin` y rutas privadas (`/cliente/agenda`, `/cliente/carrito`, `/cliente/chat`)
+- ✅ Redirección post-login según role (admin → `/admin`, cliente → `/`)
 
-**E2 - Catálogo de tratamientos y productos:**
-- `/cliente/tratamientos`: lista de 4 tratamientos desde `/treatment`
-- `/cliente/tratamientos/[id]`: detalle; si es "Depilación Láser", expande opciones de zona desde `/treatment_option`
-- `/cliente/productos`: lista de 3 productos desde `/product`
-- `/cliente/productos/[id]`: detalle con datos reales (nombre, descripción, precio, stock)
-- Manejo de errores básico (`error.tsx`)
-- Navegación con `Link` entre listados y detalles
-- PR #3 mergeada
+**E2 - Catálogo:**
+- ✅ `/cliente/tratamientos`: lista de 4 tratamientos desde `/treatment`
+- ✅ `/cliente/tratamientos/[id]`: detalle; si es "Depilación Láser", expande opciones de zona
+- ✅ `/cliente/productos`: lista de 3 productos desde `/product`
+- ✅ `/cliente/productos/[id]`: detalle con datos reales (nombre, descripción, precio, stock)
 
 ---
 
-### Sprint 2 — Carrito de productos (E4): CERRADO ✅
+### Sprint 2 — Panel Admin + Fichas de Cliente: ✅ CERRADO
 
-**E4 - Carrito de compras (solo productos, no citas aún):**
-- `lib/cart.ts`: cliente autenticado con `getCart()`, `addProductToCart()`, `updateCartItemQuantity()`, `removeFromCart()`
-- **Seguridad en Xano:** `client_id` se toma de `auth.id` en el token, nunca del body (previene que un usuario modifique carritos de otros)
-- Botón "Agregar al carrito" en `/cliente/productos/[id]` (componente `AddToCartButton.tsx`)
-- `/cliente/carrito`: listado interactivo con cantidad, precio unitario, subtotal, botón eliminar, total
-- Relación expandida en `GET /cart`: trae `_product.name` para mostrar nombre real en vez de ID
-- **Fix importante:** `xanoFetch` ahora usa `cache: "no-store"` para evitar servir precios/stock desactualizados (problema de caché de Next.js)
-- **Fix en Xano:** mapeo correcto de campos en `POST /cart` (item_type, product_id, quantity, unit_price)
-- Botón "Ir a pagar" existe pero todavía no hace nada (pasarela de pago pendiente)
-- PR #4 mergeada
+**E6 - Panel Admin:**
+- ✅ `/admin/citas`: listado de citas con filtros (Todas/Pendientes/Confirmadas/Completadas)
+- ✅ `/admin/pedidos`: listado de órdenes de productos y depósitos
+- ✅ `/admin/inventario`: control de stock
+
+**E8 - Fichas de Cliente:**
+- ✅ `/admin/clientes`: búsqueda de clientes
+- ✅ `/admin/clientes/[id]`: ficha con historial de citas/pedidos y notas clínicas
 
 ---
 
-## 8. Próximos pasos — Sprint 3 en adelante
+### Sprint 3 — Flujo unificado de carrito + agendamiento + pago: ✅ CERRADO
 
-### Sprint 3 — Agendamiento (E3)
-- Crear tabla `appointment` en Xano (si no está completada)
-- Página `/cliente/agenda`: disponibilidad según L-V 9-18h (bloques horarios por `time`)
-- Flujo: cliente selecciona tratamiento → selecciona zona (si aplica) → selecciona fecha/hora → aparece en carrito como `appointment_deposit` (50% del precio)
-- Página `/admin/citas`: ver citas del día, gestionar (reprogramar, cancelar)
+**E4 - Carrito y Pagos (completado completamente):**
+- ✅ `lib/cart.ts`: `getCart()`, `addProductToCart()`, `addAppointmentToCart()`, `updateCartItemQuantity()`, `removeFromCart()`, `createOrder()`
+- ✅ Seguridad: `client_id` se toma de `$auth.id` en JWT, nunca del body
+- ✅ `/cliente/carrito`: listado interactivo de productos y depósitos de citas, cantidad, precio, total
+- ✅ GET /cart en Xano: usa `join appointment→treatment` + `eval` para expandir treatment.name (evita addons anidados que se descartan silenciosamente)
+- ✅ POST /order en Xano: bifurca por `item_type` (product usa precio DB, appointment_deposit usa deposit_amount DB), calcula total server-side
+- ✅ Integración Webpay Plus/Transbank:
+  - ✅ `lib/webpay.ts` — cliente Webpay (solo en Route Handlers, nunca en client components)
+  - ✅ `lib/buy-order.ts` — encodes payment intent en `{ORD|APPT}-{id}-{nonce}`
+  - ✅ `POST /api/webpay/create` — lee recurso con JWT del usuario, calcula amount server-side, inicia transacción
+  - ✅ `GET|POST /api/webpay/commit` — callback de Transbank, usa `xanoServerFetch` con `X-Internal-Secret` header, llama `/internal/order/{id}/mark-paid`
+  - ✅ `xanoServerFetch` — server-only fetch wrapper que autentica con `XANO_INTERNAL_SECRET` (shared secret)
+- ✅ `/internal/order/{id}/mark-paid` en Xano: valida secreto, confirma pago, procesa items por tipo (descuenta stock, confirma cita+marca depósito pagado), vacía carrito
 
-### Sprint 4 — Pasarela de pago
-- Integración con Transbank/Webpay Plus (estándar en Chile)
-- Endpoint de checkout que llama a la pasarela
-- Webhook para confirmar pago exitoso → actualiza `appointment.deposit_status = paid` y `order.payment_status = paid`
-- Notificación al usuario post-pago (email/WhatsApp)
+**E3 - Agendamiento (completado integrado con carrito):**
+- ✅ `/cliente/agenda`: selecciona tratamiento → fecha/hora → "Agregar al Carrito"
+- ✅ AgendaClient.tsx: bloquea horas pasadas, hora en curso, horas ya reservadas (con tooltip al pasar mouse)
+- ✅ Fix date off-by-one: cambio de `toISOString()` (UTC) a `getFullYear()/getMonth()/getDate()` (local)
+- ✅ Crea `appointment` con status `pending` y `deposit_amount = total_price * 0.5`
+- ✅ Añade a carrito como `item_type: "appointment_deposit"`
 
-### Sprint 5 — Panel admin básico
-- `/admin/citas`: vista de citas del día/mes, búsqueda
-- `/admin/pedidos`: listado de órdenes de productos y depósitos de citas
-- `/admin/inventario`: control de stock, movimientos
+---
 
-### Sprint 6 — Fichas de cliente y chatbot admin
-- `/admin/clientes`: búsqueda y ficha de cliente (historial, alergias, notas clínicas)
-- Chatbot asistente para admin: resúmenes, consultas internas
+## 8. Arquitectura actual (Next.js 16 + Xano)
 
-### Sprint 7 — Chatbot cliente (E5) + pulido final
+### Dos codebases, un repo
+- `src/` — Next.js 16 (App Router), frontend desplegado
+- `xano-backend/` — espejo local de XanoScript, sincronizado via Xano CLI
+
+### Capas de data fetching
+- `lib/xano.ts` (`xanoFetch`) — client-safe, content API, `cache: "no-store"`, usa JWT del usuario
+- `lib/xano-server.ts` (`xanoServerFetch`) — server-only, autentica con `XANO_INTERNAL_SECRET` (shared secret, no JWT), usado EXCLUSIVAMENTE en Webpay commit
+- `lib/auth.ts` — signup/login/me/logout contra Authentication API group. Token en localStorage + cookie (`bellevie_auth_token`)
+- Módulos por feature (`lib/cart.ts`, `lib/appointment.ts`) — wrappean `xanoFetch`/fetches directas, usan `getToken()`
+
+### Auth & authorization
+- `src/proxy.ts` — gate `/admin`, `/cliente/agenda`, `/cliente/carrito`, `/cliente/chat` por cookie (existence check)
+- Páginas redirigen a `/auth/me` server-side y validan role (proxy es first-pass, no es suficiente)
+- Ownership en **Xano**: endpoints WRITE derivan `client_id` de `$auth.id`, **nunca** del body
+- Endpoints READ de single-resource chequean `resource.client_id == $auth.id || role == "admin"`
+
+### Booking flow (completamente refactorizado en Sprint 3)
+1. Cliente selecciona tratamiento → va a `/cliente/agenda`
+2. Selecciona fecha/hora → clic "Agregar al Carrito"
+3. Frontend crea `appointment` (status pending, deposit_amount = total * 0.5)
+4. Frontend llama `addAppointmentToCart()` → POST /cart con `item_type: "appointment_deposit"`, `appointment_id`, `unit_price: deposit_amount`
+5. Cliente continúa comprando productos o procede a checkout
+6. Checkout: POST /api/webpay/create con `{kind: "order", id}`
+7. Route handler lee order usando JWT del usuario, calcula amount, inicia Transbank
+8. Transbank callback a GET|POST /api/webpay/commit (sin JWT)
+9. commit route usa xanoServerFetch con XANO_INTERNAL_SECRET
+10. Llama /internal/order/{id}/mark-paid; Xano confirma cita + descuenta stock + vacía carrito
+
+### Payments (Webpay Plus / Transbank) — Arquitectura de seguridad
+
+**Patrón de secreto compartido:**
+- El **secreto compartido** (XANO_INTERNAL_SECRET) es una credencial servidor-a-servidor entre Next.js y Xano
+- Se guarda SOLO en `.env.local` (nunca en git), solo los Route Handlers lo conocen
+- Usado EXCLUSIVAMENTE en `GET|POST /api/webpay/commit` (callback de Transbank, sin sesión de usuario)
+
+**Flujo de seguridad:**
+1. `POST /api/webpay/create` — Usuario autenticado con JWT
+   - Cliente envía solo `{kind, id}` (no monto)
+   - Route Handler fetch recurso con JWT del usuario (verifica ownership)
+   - Amount se calcula server-side desde el registro
+   - Inicia Transbank
+   
+2. `GET|POST /api/webpay/commit` — Callback de Transbank (sin usuario)
+   - Route Handler NO tiene JWT (viene de servidor de Transbank)
+   - Usa `xanoServerFetch` con `X-Internal-Secret: ${XANO_INTERNAL_SECRET}`
+   - Xano valida secreto antes de ejecutar `/internal/order/{id}/mark-paid`
+   - Si falla validación, retorna 403 Forbidden
+
+**¿Por qué es correcto?**
+- ✅ Ownership validado en create via JWT (no podés pagar algo ajeno)
+- ✅ Monto derivado server-side, nunca confiado del cliente
+- ✅ Secret solo entre Next.js y Xano (ambos tu infraestructura)
+- ✅ Idempotencia en mark-paid (reintentos de Transbank no duplican pagos)
+- ✅ Monto validado en mark-paid contra registro DB
+
+## 9. Notas técnicas importantes
+
+1. **Next.js 16** → `middleware.ts` → `src/proxy.ts`, export `middleware` → `proxy`
+2. **Caché en xanoFetch** → `cache: "no-store"` (precios/stock cambian)
+3. **Relaciones en Xano** → usar `join` + `eval` (addons anidados se descartan silenciosamente)
+4. **Rutas protegidas** → `proxy.ts` es primer-pass; páginas deben re-validar `getMe()` + role
+5. **Depilación Láser** → único tratamiento con variantes (`treatment_option`)
+6. **Abono del 50%** → siempre server-side: `total_price * 0.5`
+7. **Shared secret vs JWT** — JWT para client-user, secreto compartido para server-to-server callbacks
+8. **XanoScript validation** — es syntax-only; validar con `xano_validate_xanoscript` antes de push, luego pull o hit live endpoint para confirmar
+
+## 10. Próximos pasos (Sprint 4+)
+
+### Sprint 4 — Chatbot Cliente (E5)
 - `/cliente/chat`: interfaz de chat con Claude API
 - Tool use: el bot puede agendar, consultar disponibilidad, crear órdenes
-- Testing, optimización, deploy a producción
 
----
+### Sprint 5 — Inventario avanzado (E7)
+- `/admin/inventario`: control de stock, movimientos detallados
+- `/admin/pedidos`: listado filtrable de órdenes
 
-## 9. Notas técnicas importantes (para futuras referencias)
+### Sprint 6 — Chatbot Admin (E9)
+- Asistente interno para la administradora
+- Resúmenes, consultas internas
 
-1. **Next.js 16 → proxy.ts:** renombró `middleware.ts` a `proxy.ts`, cambió export de `middleware` a `proxy`. Runtime Node.js.
-2. **Caché de datos en Xano:** `xanoFetch` usa `cache: "no-store"` porque precios/stock pueden cambiar en cualquier momento en la base de datos.
-3. **Seguridad en POST/GET:** siempre mapear `client_id` al `auth.id` del token, nunca aceptar del body. Aplica a `/cart`, `/order`, `/conversation`, `/client_file`, etc.
-4. **Relaciones en Xano:** usar "Add Related Record" addon en el Output de endpoints para expandir `_producto` / `_tratamiento` en una sola llamada en vez de N fetches desde React.
-5. **Rutas protegidas:** `proxy.ts` protege el acceso, pero cada página también debe validar `getMe()` y confirmar el `role` para protegerse de edge cases.
-6. **Depilación Láser:** es el único tratamiento con variantes (`treatment_option`). Cuando agendas, pasas `option_id` en lugar de usar `treatment.base_price` directo.
-7. **Abono del 50%:** siempre se calcula server-side (en Xano) como `total_price * 0.5` al crear la cita, nunca en el frontend.
+### Sprint 7 — Integración final, pulido, deploy producción
+- Testing, optimización, deploy
