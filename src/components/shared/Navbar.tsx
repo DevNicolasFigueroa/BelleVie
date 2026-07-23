@@ -4,16 +4,38 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getToken, logout } from "@/lib/auth";
+import { getCart } from "@/lib/cart";
 
 export default function Navbar() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [role, setRole] = useState<string | null>(null);
+  const [cartCount, setCartCount] = useState(0);
 
   const router = useRouter();
 
+  const fetchCartCount = async () => {
+    const token = getToken();
+    if (token) {
+      try {
+        const items = await getCart();
+        setCartCount(items.length);
+      } catch (e) {
+        setCartCount(0);
+      }
+    }
+  };
+
   useEffect(() => {
-    setIsAuthenticated(!!getToken());
+    const token = getToken();
+    setIsAuthenticated(!!token);
     setRole(localStorage.getItem("bellevie_user_role"));
+
+    // Obtener carrito si está autenticado
+    fetchCartCount();
+
+    // Actualizar carrito cuando vuelve el foco
+    window.addEventListener("focus", fetchCartCount);
+    return () => window.removeEventListener("focus", fetchCartCount);
   }, []);
 
   const handleLogout = () => {
@@ -44,12 +66,20 @@ export default function Navbar() {
           <Link href="/cliente/productos" className="text-[14px] font-semibold tracking-widest uppercase hover:text-[#775a19] transition-colors" style={{ color: colors.secondary }}>
             Tienda
           </Link>
+          <Link href="/contacto" className="text-[14px] font-semibold tracking-widest uppercase hover:text-[#775a19] transition-colors" style={{ color: colors.secondary }}>
+            Contacto
+          </Link>
         </div>
 
         {/* Acciones */}
         <div className="flex items-center gap-4">
           <Link href="/cliente/carrito" className="p-2 rounded-full hover:bg-[#e5e2dd]/50 transition-colors relative flex items-center justify-center">
             <span className="material-symbols-outlined text-gray-600 font-light text-[28px]">local_mall</span>
+            {cartCount > 0 && (
+              <span className="absolute top-0 right-0 bg-[#775a19] text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                {cartCount > 99 ? "99+" : cartCount}
+              </span>
+            )}
           </Link>
 
           <div className="w-px h-6 bg-[#d1c5b4]/50 mx-2 hidden md:block"></div>
