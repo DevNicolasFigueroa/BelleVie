@@ -24,7 +24,8 @@ export function saveToken(token: string, role?: string) {
     if (role) {
         localStorage.setItem("bellevie_user_role", role);
     }
-    document.cookie = `bellevie_auth_token=${token}; path=/; max-age=604800; SameSite=Lax`;
+    const secureFlag = location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `bellevie_auth_token=${token}; path=/; max-age=604800; SameSite=Lax${secureFlag}`;
 }
 
 export function getToken(): string | null {
