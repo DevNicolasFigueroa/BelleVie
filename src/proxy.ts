@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // Rutas que requieren estar autenticado
-const PROTECTED_PREFIXES = ["/admin", "/cliente/agenda", "/cliente/carrito", "/cliente/chat"];
+const PROTECTED_PREFIXES = ["/admin", "/cliente/agenda", "/cliente/carrito"];
 
 export default function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
@@ -24,5 +24,5 @@ export default function proxy(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ["/admin/:path*", "/cliente/agenda/:path*", "/cliente/carrito/:path*", "/cliente/chat/:path*"],
+    matcher: ["/admin/:path*", "/cliente/agenda/:path*", "/cliente/carrito/:path*"],
 };
