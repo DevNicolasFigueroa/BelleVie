@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getToken, logout } from "@/lib/auth";
 import { getCart } from "@/lib/cart";
+import FloatingChat from "./FloatingChat";
 
 export default function Navbar() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -51,6 +52,7 @@ export default function Navbar() {
   };
 
   return (
+    <>
     <nav className="bg-white/80 backdrop-blur-md border-b border-[#d1c5b4]/30 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
         {/* Logo */}
@@ -116,5 +118,8 @@ export default function Navbar() {
         </div>
       </div>
     </nav>
+
+    {isAuthenticated && role === "client" && <FloatingChat />}
+    </>
   );
 }
