@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import Navbar from "@/components/shared/Navbar";
 
 const treatmentsCarousel = [
@@ -110,10 +111,11 @@ export default function Home() {
             <div className="relative rounded-[2.5rem] overflow-hidden aspect-[4/5] shadow-2xl border border-white/60 group bg-gray-950">
               
               {/* Imagen del Slide Activo */}
-              <img 
+              <Image 
                 src={currentItem.image} 
                 alt={currentItem.title}
-                className="w-full h-full object-cover opacity-75 transition-all duration-700 scale-100 group-hover:scale-105"
+                fill
+                className="object-cover opacity-75 transition-all duration-700 scale-100 group-hover:scale-105"
               />
               
               {/* Overlay en degradé */}
@@ -188,7 +190,7 @@ export default function Home() {
                 className={`cursor-pointer group relative rounded-2xl overflow-hidden bg-white border transition-all duration-300 ${idx === currentIndex ? 'border-[#775a19] ring-2 ring-[#775a19]/20 shadow-lg' : 'border-[#d1c5b4]/30 hover:border-[#775a19]/50'}`}
               >
                 <div className="h-44 relative overflow-hidden">
-                  <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <Image src={item.image} alt={item.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
                   <div className="absolute inset-0 bg-gradient-to-t from-gray-950/60 to-transparent"></div>
                 </div>
                 <div className="p-4">

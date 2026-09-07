@@ -2,6 +2,7 @@ import { AddToCartButton } from "@/components/shared/AddToCartButton";
 import { xanoFetch } from "@/lib/xano";
 import type { Product } from "@/types";
 import Link from "next/link";
+import Image from "next/image";
 import Navbar from "@/components/shared/Navbar";
 
 export default async function ProductoDetailPage({
@@ -31,7 +32,7 @@ export default async function ProductoDetailPage({
                     
                     {/* Sección de Imagen */}
                     <div className="md:w-1/2 bg-[#f6f3f2] relative overflow-hidden min-h-[400px]">
-                        <img 
+                        <Image 
                             src={(() => {
                                 const n = product.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                                 if (n.includes("crema") || n.includes("noche") || n.includes("antiage")) return "/productos/crema.png";
@@ -40,7 +41,8 @@ export default async function ProductoDetailPage({
                                 return "/productos/serum.png";
                             })()}
                             alt={product.name}
-                            className="w-full h-full object-cover"
+                            fill
+                            className="object-cover"
                         />
                         <div className="absolute top-6 left-6 z-10">
                             {product.stock > 0 ? (

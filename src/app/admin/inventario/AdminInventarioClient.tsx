@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import type { Product } from "@/types";
 
 function stockStatus(stock: number) {
@@ -136,11 +137,12 @@ export default function AdminInventarioClient({
                   <tr key={product.id} className="hover:bg-[#fcf9f8]/60 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-xl overflow-hidden bg-[#f6f3f2] shrink-0">
-                          <img
+                        <div className="w-14 h-14 rounded-xl overflow-hidden bg-[#f6f3f2] shrink-0 relative">
+                          <Image
                             src={productImage(product.name)}
                             alt={product.name}
-                            className="w-full h-full object-cover"
+                            fill
+                            className="object-cover"
                           />
                         </div>
                         <div>
