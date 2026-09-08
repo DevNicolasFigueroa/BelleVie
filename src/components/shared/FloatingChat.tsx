@@ -10,13 +10,19 @@ interface Message {
 }
 
 interface CatalogData {
-  treatments: any[];
-  products: any[];
+  treatments: Record<string, unknown>[];
+  products: Record<string, unknown>[];
 }
 
 export default function FloatingChat() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      role: "assistant",
+      content: "¡Hola! Soy el asistente de BelleVie. Puedo ayudarte con consultas sobre nuestros tratamientos, productos y disponibilidad. ¿Qué te gustaría saber?",
+      timestamp: new Date(),
+    },
+  ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [catalogData, setCatalogData] = useState<CatalogData | null>(null);
@@ -24,50 +30,40 @@ export default function FloatingChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      setMessages([
-        {
-          role: "assistant",
-          content: "¡Hola! Soy el asistente de BelleVie. Puedo ayudarte con consultas sobre nuestros tratamientos, productos y disponibilidad. ¿Qué te gustaría saber?",
-          timestamp: new Date(),
-        },
-      ]);
-    }
+    const loadCatalog = async () => {
+      try {
+        const token = getToken();
+        if (!token) return;
+
+        const [treatmentsRes, productsRes] = await Promise.all([
+          fetch("/api/xano/treatments", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch("/api/xano/products", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+
+        if (treatmentsRes.ok && productsRes.ok) {
+          const treatments = await treatmentsRes.json();
+          const products = await productsRes.json();
+          setCatalogData({ treatments, products });
+        }
+        setHasLoadedCatalog(true);
+      } catch (e) {
+        console.error("Error cargando catálogo:", e);
+        setHasLoadedCatalog(true);
+      }
+    };
 
     if (isOpen && !hasLoadedCatalog) {
       loadCatalog();
     }
-  }, [isOpen]);
+  }, [isOpen, hasLoadedCatalog]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isOpen]);
-
-  const loadCatalog = async () => {
-    try {
-      const token = getToken();
-      if (!token) return;
-
-      const [treatmentsRes, productsRes] = await Promise.all([
-        fetch("/api/xano/treatments", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch("/api/xano/products", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-      ]);
-
-      if (treatmentsRes.ok && productsRes.ok) {
-        const treatments = await treatmentsRes.json();
-        const products = await productsRes.json();
-        setCatalogData({ treatments, products });
-      }
-      setHasLoadedCatalog(true);
-    } catch (e) {
-      console.error("Error cargando catálogo:", e);
-      setHasLoadedCatalog(true);
-    }
-  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,7 +111,7 @@ export default function FloatingChat() {
           },
         ]);
       }
-    } catch (e) {
+    } catch (error) {
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: "Disculpa, hubo un error. Intenta nuevamente.", timestamp: new Date() },

@@ -1,6 +1,7 @@
 import { xanoFetch } from "@/lib/xano";
 import type { Treatment } from "@/types";
 import Link from "next/link";
+import Image from "next/image";
 import Navbar from "@/components/shared/Navbar";
 
 export default async function TratamientosPage() {
@@ -37,7 +38,7 @@ export default async function TratamientosPage() {
                                 
                                 {/* Imagen del tratamiento */}
                                 <div className="h-56 relative overflow-hidden bg-[#f6f3f2]">
-                                    <img 
+                                    <Image 
                                         src={(() => {
                                             const n = t.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                                             if (n.includes("cavitacion")) return "/tratamientos/cavitacion.jpg";
@@ -47,7 +48,8 @@ export default async function TratamientosPage() {
                                             return "/tratamientos/cavitacion.jpg";
                                         })()} 
                                         alt={t.name}
-                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                                        fill
+                                        className="object-cover group-hover:scale-105 transition-transform duration-700"
                                     />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60"></div>
                                 </div>

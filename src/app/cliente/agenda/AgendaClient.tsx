@@ -29,9 +29,9 @@ export default function AgendaClient({ treatments, initialOptions }: AgendaClien
   const selectedTreatment = treatments.find(t => t.id === selectedTreatmentId);
 
   // Opciones aplicables al tratamiento seleccionado
-  const availableOptions = selectedTreatment
+  const availableOptions = React.useMemo(() => selectedTreatment
     ? initialOptions.filter(o => o.treatment_id === selectedTreatment.id)
-    : [];
+    : [], [selectedTreatment, initialOptions]);
 
   // Cuando cambie el tratamiento, si tiene opciones, seleccionamos la primera por defecto.
   // Si no tiene opciones, limpiamos el selectedOptionId
@@ -76,14 +76,14 @@ export default function AgendaClient({ treatments, initialOptions }: AgendaClien
         if (!token) return;
 
         const dateStr = getFormattedDate(selectedDate);
-        const res = await fetch(`${process.env.NEXT_PUBLIC_XANO_BASE_URL}/appointment`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_XANO_BASE_URL}/appointment?date=${dateStr}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (!res.ok) return;
 
         const appointments = await res.json();
         const booked = new Set<string>();
-        appointments.forEach((apt: any) => {
+        appointments.forEach((apt: { date: string; status: string; deposit_status: string; time: string }) => {
           if (apt.date === dateStr && apt.status === "confirmed" && apt.deposit_status === "paid") {
             booked.add(apt.time);
           }
@@ -146,8 +146,9 @@ export default function AgendaClient({ treatments, initialOptions }: AgendaClien
       // 2. Agregar al carrito con el depósito calculado por Xano.
       await addAppointmentToCart(appointment.id, appointment.deposit_amount);
       router.push("/cliente/carrito");
-    } catch (err: any) {
-      alert("Error al agregar al carrito: " + (err.message || String(err)));
+    } catch (err: unknown) {
+      const error = err as Error;
+      alert("Error al agregar al carrito: " + (error.message || String(error)));
       setIsProcessing(false);
     }
   }

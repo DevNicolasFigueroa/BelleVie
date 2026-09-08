@@ -74,8 +74,13 @@ export async function addAppointmentToCart(appointmentId: number, depositAmount:
     });
 }
 
-export async function createOrder(items: CartItem[], total: number): Promise<any> {
-    return authFetch<any>("/order", {
+export interface OrderResponse {
+    id: number;
+    [key: string]: unknown;
+}
+
+export async function createOrder(items: CartItem[], total: number): Promise<OrderResponse> {
+    return authFetch<OrderResponse>("/order", {
         method: "POST",
         body: JSON.stringify({
             type: "product",

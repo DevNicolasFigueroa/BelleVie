@@ -1,6 +1,7 @@
 import { xanoFetch } from "@/lib/xano";
 import type { Product } from "@/types";
 import Link from "next/link";
+import Image from "next/image";
 import Navbar from "@/components/shared/Navbar";
 
 export default async function ProductosPage() {
@@ -37,7 +38,7 @@ export default async function ProductosPage() {
                                 
                                 {/* Imagen del producto */}
                                 <div className="aspect-square bg-[#f6f3f2] relative overflow-hidden">
-                                    <img 
+                                    <Image 
                                         src={(() => {
                                             const n = p.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                                             if (n.includes("crema") || n.includes("noche") || n.includes("antiage")) return "/productos/crema.png";
@@ -46,7 +47,8 @@ export default async function ProductosPage() {
                                             return "/productos/serum.png";
                                         })()}
                                         alt={p.name}
-                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                                        fill
+                                        className="object-cover group-hover:scale-105 transition-transform duration-700"
                                     />
                                 </div>
                                 

@@ -1,185 +1,104 @@
-# BelleVie — Sistema de Gestión Inteligente para Clínica Estética
+# 🌸 BelleVie — Sistema de Gestión Inteligente
 
-![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=nextdotjs)
-![React](https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?style=flat-square&logo=typescript)
-![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3-06b6d4?style=flat-square&logo=tailwindcss)
+![Estado](https://img.shields.io/badge/Estado-En_Desarrollo-orange)
+![Versión Next.js](https://img.shields.io/badge/Next.js-16_App_Router-black)
+![Backend](https://img.shields.io/badge/Backend-Xano-blue)
+![Pagos](https://img.shields.io/badge/Pagos-Webpay_Plus-red)
 
-BelleVie es una plataforma web para gestión integral de una clínica de kinesiología estética en Santiago, Chile. Centraliza agendamiento de citas, venta de productos, gestión de inventario y comunicación en un solo lugar.
-
-## 🎯 Características Principales
-
-### Para Clientes
-- ✅ Catálogo de tratamientos (Laserlipólisis, Cavitación, Facial Radiofrecuencia, Depilación Láser)
-- ✅ Catálogo de productos premium
-- ✅ Agendamiento de citas con disponibilidad en tiempo real
-- ✅ Carrito unificado (productos + depósitos de citas)
-- ✅ Pago online vía Webpay Plus (Transbank)
-- ✅ Perfil personal con historial de citas y compras
-- ✅ Página de contacto pública
-- ⏳ Chat con bot de atención (próximo sprint)
-
-### Para Administrador
-- ✅ Panel de control con citas, pedidos, inventario
-- ✅ Gestión de fichas clínicas (historial, alergias, notas médicas)
-- ✅ Control de stock y movimientos
-- ✅ Búsqueda avanzada de clientes
-- ⏳ Asistente bot interno (próximo sprint)
-
-## 🏗️ Arquitectura
-
-### Stack Tecnológico
-- **Frontend:** Next.js 16 (App Router), React 18, TypeScript, TailwindCSS
-- **Backend:** Xano (PostgreSQL)
-- **Pagos:** Webpay Plus / Transbank
-- **IA:** Claude API (futuro: chatbots cliente/admin)
-
-### Dos Codebases, Un Repo
-```
-bellevie/
-├── src/              # Next.js 16 frontend
-├── xano-backend/     # Espejo local de endpoints Xano
-└── PLANNING.md       # Documentación del proyecto
-```
-
-## 🚀 Inicio Rápido
-
-### Requisitos
-- Node.js 18+
-- npm o yarn
-- Variables de entorno (.env.local)
-
-### Instalación
-```bash
-npm install
-npm run dev
-```
-
-La aplicación estará disponible en `http://localhost:3000`
-
-### Variables de Entorno
-```env
-NEXT_PUBLIC_XANO_BASE_URL=https://your-xano-instance.com/api/rest/v1
-NEXT_PUBLIC_XANO_AUTH_URL=https://your-xano-instance.com/api/rest/v1
-XANO_INTERNAL_SECRET=your_shared_secret
-```
-
-## 📊 Estado del Proyecto
-
-| Épica | Descripción | Estado |
-|-------|-------------|--------|
-| E1 | Autenticación | ✅ Completada |
-| E2 | Catálogo | ✅ Completada |
-| E3 | Agendamiento | ✅ Completada |
-| E4 | Carrito y Pago | ✅ Completada |
-| E5 | Chatbot Cliente | ⏳ Pendiente |
-| E6 | Panel Admin | ✅ Completada |
-| E7 | Inventario | ⏳ Pendiente |
-| E8 | Gestión Clientes | ✅ Completada |
-| E9 | Chatbot Admin | ⏳ Pendiente |
-
-**Progreso:** 6 de 9 épicas (67%)
-
-## 💡 Características Técnicas Destacadas
-
-### Autenticación
-- JWT en localStorage + cookie (para validación server-side)
-- Roles: cliente / admin
-- Protección de rutas vía `proxy.ts` + validación en páginas
-
-### Carrito Unificado
-- Soporta productos y depósitos de citas en el mismo carrito
-- Expansión de datos con join+eval en Xano (patrón de seguridad)
-- Total calculado server-side (previene fraude)
-
-### Pagos Seguros
-- Integración Webpay Plus con validación de monto server-side
-- Autenticación servidor-a-servidor vía secreto compartido (XANO_INTERNAL_SECRET)
-- Idempotencia en confirmación de pago (reintentos seguros)
-
-### Agendamiento
-- Bloques horarios fijos (9-17 hrs, L-V)
-- Bloqueo automático de horas pasadas/actuales
-- Disponibilidad en tiempo real
-- Depósito del 50% integrado en checkout
-
-## 📁 Estructura de Carpetas
-
-```
-src/
-├── app/
-│   ├── admin/              # Panel administrador
-│   ├── cliente/            # Páginas cliente
-│   │   ├── perfil/         # Perfil con historial
-│   │   ├── tratamientos/   # Catálogo tratamientos
-│   │   ├── productos/      # Catálogo productos
-│   │   ├── carrito/        # Carrito de compras
-│   │   └── agenda/         # Agendamiento
-│   ├── contacto/           # Página pública de contacto
-│   ├── api/                # Route handlers
-│   └── page.tsx            # Home
-├── lib/
-│   ├── xano.ts             # Cliente Xano (JWT)
-│   ├── xano-server.ts      # Cliente Xano (secreto compartido)
-│   ├── auth.ts             # Autenticación
-│   ├── cart.ts             # Lógica de carrito
-│   ├── webpay.ts           # Cliente Webpay
-│   └── buy-order.ts        # Encoding de órdenes
-├── components/             # Componentes reutilizables
-└── types/                  # TypeScript types
-```
-
-## 🔒 Seguridad
-
-### Validación de Propiedad
-- Todas las operaciones de escritura mapean `client_id` a `$auth.id` (JWT) en Xano
-- Lectura de recursos validados en Xano: `resource.client_id == $auth.id || role == "admin"`
-
-### Validación de Monto
-- POST /webpay/create: fetch del recurso con JWT, monto derivado server-side
-- POST /webpay/commit: validación de monto contra registro en Xano
-
-### Secreto Compartido
-- XANO_INTERNAL_SECRET solo en .env (nunca versionado)
-- Usado exclusivamente para callbacks de Transbank (server-to-server)
-
-## 📚 Documentación
-
-- **CLAUDE.md** — Guía técnica para Claude Code (arquitectura, comandos, patrones)
-- **PLANNING.md** — Especificación del proyecto, modelo de datos, historia de sprints
-
-## 🛠️ Comandos Disponibles
-
-```bash
-npm run dev       # Iniciar servidor desarrollo (puerto 3000)
-npm run build     # Build producción + typecheck
-npm run lint      # Ejecutar ESLint
-npm start         # Ejecutar build producción
-```
-
-## 🔄 Sincronización Xano
-
-Los archivos `.xs` en `xano-backend/` son espejos locales de los endpoints Xano. Para sincronizar:
-
-```bash
-# Push un archivo
-xano workspace push --force -i "api/content/cart_GET.xs"
-
-# Pull estado actual
-xano workspace pull --directory xano-backend/
-```
-
-**Importante:** Siempre validar antes de push con `xano_validate_xanoscript`.
-
-## 📞 Contacto
-
-Para consultas sobre desarrollo o mejoras, ver página `/contacto` en la aplicación.
-
-## 📄 Licencia
-
-Privado — Proyecto interno para BelleVie.
+**BelleVie** es una plataforma integral web diseñada específicamente para una clínica boutique de kinesiología estética en Santiago de Chile. El sistema centraliza el agendamiento, ventas, control de inventario y comunicación en una sola herramienta, permitiendo al personal clínico enfocarse en la atención a los pacientes en lugar de en la carga administrativa.
 
 ---
 
-**Última actualización:** Julio 2026  
-**Estado:** En desarrollo activo — Sprint 3 completado, Sprint 4+ en backlog
+## ✨ Características Principales
+
+### 👤 Portal del Cliente (Paciente)
+- **Catálogo Online:** Visualización interactiva de tratamientos (ej. Laserlipólisis, Cavitación) y productos físicos de skincare.
+- **Reserva Inteligente:** Agendamiento de citas con validación de disponibilidad en tiempo real e interfaz adaptativa de calendarios.
+- **Carrito Unificado:** Agregación conjunta y pago unificado de productos físicos y el abono obligatorio (50%) para la confirmación de citas de tratamiento.
+- **Pagos Seguros:** Integración completa con **Webpay Plus (Transbank)** para transacciones seguras con tarjetas de crédito/débito.
+
+### 🛡️ Panel de Administración (Staff)
+- **Gestión de Agenda:** Calendario centralizado para ver, confirmar o cancelar citas.
+- **Gestión de Órdenes:** Seguimiento de pedidos de productos y depósitos de tratamientos.
+- **Fichas Clínicas:** Búsqueda rápida de pacientes, revisión de su historial de tratamientos, órdenes pasadas, notas clínicas y alergias.
+- **Control de Inventario:** Monitoreo y ajuste básico de stock para venta de productos.
+
+*(Próximamente: Chatbots con IA basados en la API de Claude, para atención automatizada de pacientes y como asistente inteligente para la administradora).*
+
+---
+
+## 🛠️ Arquitectura y Tecnologías
+
+El proyecto se divide en dos capas fuertemente desacopladas:
+
+### Frontend (Next.js)
+- **Framework:** [Next.js 16](https://nextjs.org/) (App Router)
+- **Lenguaje:** TypeScript
+- **Estilos:** Tailwind CSS
+- **Seguridad Frontend:** Middleware proxy (`src/proxy.ts`) para protección de rutas según el rol de los usuarios (Admin/Client) y validación de cookies.
+
+### Backend y Base de Datos (Xano)
+- **Infraestructura:** [Xano](https://www.xano.com/) (Backend No-Code/Low-Code robusto y escalable montado sobre PostgreSQL).
+- **Lógica de Negocios:** API customizada, relaciones y uniones complejas en endpoints para evitar manipulación de datos sensibles del lado del cliente.
+- **Sincronización de Código:** Uso de Xano CLI para mantener un espejo local del backend (`xano-backend/`) y tener control de versiones de XanoScript.
+
+### Arquitectura de Pagos Segura
+La integración con Transbank Webpay utiliza un patrón de **Secreto Compartido** servidor a servidor (`XANO_INTERNAL_SECRET`). Esto garantiza que los callbacks asíncronos de pago que recibe Next.js se puedan re-enviar al backend Xano con autenticación exclusiva y máxima seguridad sin depender de JWT del cliente; logrando una actualización de base de datos, descuento de stock y confirmación de agendas 100% segura.
+
+---
+
+## 🚀 Configuración Local (Getting Started)
+
+### Requisitos Previos
+- Node.js (v18.17 o superior)
+- Cuenta configurada en Xano (URLs de endpoints base)
+- Credenciales de Integración de Transbank (Entorno de Comercio de Prueba).
+
+### 1. Clonar el Repositorio
+```bash
+git clone https://github.com/tu-usuario/bellevie.git
+cd bellevie
+```
+
+### 2. Variables de Entorno
+Crea un archivo `.env.local` en la raíz del proyecto y configura las siguientes variables según el entorno de desarrollo:
+
+```env
+# Xano API Config
+NEXT_PUBLIC_XANO_BASE_URL=https://tu-instancia-xano.com/api:XXXX
+XANO_INTERNAL_SECRET=tu_secreto_super_seguro_para_server_to_server
+
+# Transbank Webpay
+# (A continuación las credenciales default de ambiente de integración)
+WEBPAY_COMMERCE_CODE=597055555532
+WEBPAY_API_KEY=579B532A7440BB0C9079DED94D31EA1615BACEB56610332264630D42D0A36B1C
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+```
+
+### 3. Instalar Dependencias e Iniciar
+```bash
+npm install
+
+# Iniciar el servidor de desarrollo local
+npm run dev
+```
+Abre [http://localhost:3000](http://localhost:3000) en tu navegador para ver la aplicación corriendo.
+
+---
+
+## 📂 Estructura Principal del Proyecto
+
+- `/src/app/` — Rutas principales App Router (Rutas de `/admin`, `/cliente`, `/api`, `/auth`).
+- `/src/lib/` — Componentes core de lógica de negocio y clientes API (`xano.ts`, `cart.ts`, `webpay.ts`, `auth.ts`).
+- `/src/components/` — Componentes React aislados y reusables.
+- `/public/` — Archivos estáticos.
+- `/xano-backend/` — Espejo local de funciones y lambdas para control de versiones en git de XanoScript.
+
+---
+
+## 📅 Estado Actual y Desarrollo
+
+Actualmente, el proyecto se encuentra en una transición clave de desarrollo:
+
+- **Fase Transaccional Completada (✅):** Autenticación de roles, Catálogo de productos y tratamientos, Sistema unificado de agendas, Panel de administrador y checkout validado con Webpay Plus. Todo testeado e implementado exitosamente (Sprints 0 al 3).
+- **Sprints Próximos (⏳):** Ingreso a la fase de automatización impulsada por IA. Desarrollo de *Claude API chatbots* para reservas conversacionales de pacientes y la elaboración del agente asistente para optimizar la gestión de la administración del local.

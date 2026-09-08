@@ -28,8 +28,10 @@ export default function Navbar() {
 
   useEffect(() => {
     const token = getToken();
-    setIsAuthenticated(!!token);
-    setRole(localStorage.getItem("bellevie_user_role"));
+    setTimeout(() => {
+      setIsAuthenticated(!!token);
+      setRole(localStorage.getItem("bellevie_user_role"));
+    }, 0);
 
     // Obtener carrito si está autenticado
     fetchCartCount();
